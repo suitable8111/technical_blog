@@ -1,0 +1,107 @@
+---
+title: "TypeScript 유용한 팁 5가지"
+date: "2025-11-28"
+description: "TypeScript를 더 효율적으로 사용하기 위한 실용적인 팁들을 소개합니다."
+tags: ["TypeScript", "JavaScript", "프로그래밍"]
+category: "팁"
+---
+
+# TypeScript 유용한 팁 5가지
+
+TypeScript는 JavaScript에 타입 안정성을 더해주는 강력한 언어입니다. 오늘은 TypeScript를 더 효율적으로 사용하기 위한 5가지 팁을 소개합니다.
+
+## 1. Union Types 활용하기
+
+Union Types를 사용하면 여러 타입 중 하나를 표현할 수 있습니다:
+
+```typescript
+type Status = 'idle' | 'loading' | 'success' | 'error';
+
+function handleStatus(status: Status) {
+  switch (status) {
+    case 'idle':
+      return '대기 중';
+    case 'loading':
+      return '로딩 중';
+    case 'success':
+      return '성공';
+    case 'error':
+      return '에러';
+  }
+}
+```
+
+## 2. Type Guards 사용하기
+
+Type Guards를 사용하면 런타임에 타입을 좁힐 수 있습니다:
+
+```typescript
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function process(value: unknown) {
+  if (isString(value)) {
+    // 여기서 value는 string 타입
+    console.log(value.toUpperCase());
+  }
+}
+```
+
+## 3. Utility Types 활용하기
+
+TypeScript는 유용한 내장 Utility Types를 제공합니다:
+
+```typescript
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  age: number;
+}
+
+// 모든 속성을 선택적으로
+type PartialUser = Partial<User>;
+
+// 특정 속성만 선택
+type UserPreview = Pick<User, 'id' | 'name'>;
+
+// 특정 속성 제외
+type UserWithoutEmail = Omit<User, 'email'>;
+```
+
+## 4. Generic 제약 조건
+
+Generic에 제약 조건을 추가하여 더 안전한 코드를 작성할 수 있습니다:
+
+```typescript
+interface Identifiable {
+  id: number;
+}
+
+function findById<T extends Identifiable>(items: T[], id: number): T | undefined {
+  return items.find(item => item.id === id);
+}
+```
+
+## 5. const assertions
+
+const assertions를 사용하면 리터럴 타입을 유지할 수 있습니다:
+
+```typescript
+// 일반적인 방법
+const colors = ['red', 'green', 'blue']; // string[]
+
+// const assertion 사용
+const colors = ['red', 'green', 'blue'] as const; // readonly ['red', 'green', 'blue']
+
+// 객체에도 사용 가능
+const config = {
+  apiUrl: 'https://api.example.com',
+  timeout: 5000,
+} as const;
+```
+
+## 결론
+
+이러한 TypeScript 팁들을 활용하면 더 안전하고 유지보수하기 쉬운 코드를 작성할 수 있습니다. TypeScript의 강력한 타입 시스템을 최대한 활용해보세요!
