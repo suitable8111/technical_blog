@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import { prisma } from './prisma';
 
 const postsDirectory = path.join(process.cwd(), 'posts');
 
@@ -51,9 +52,70 @@ export function getPostBySlug(slug: string): Post | null {
   }
 }
 
-export function getAllPosts(): PostMetadata[] {
+export async function getPostBySlugFromDB(slug: string): Promise<Post | null> {
+  try {
+    const post = await prisma.post.findUnique({
+      where: { slug, published: true },
+    });
+
+    if (!post) return null;
+
+    return {
+      slug: post.slug,
+      title: post.title,
+      date: post.createdAt.toISOString().split('T')[0],
+      description: post.description,
+      tags: post.tags,
+      category: post.category,
+      content: post.content,
+    };
+  } catch (error) {
+    console.error('Failed to fetch post from database:', error);
+    return null;
+  }
+}
+
+export async function getPostBySlugCombined(slug: string): Promise<Post | null> {
+  // Try database first
+  const dbPost = await getPostBySlugFromDB(slug);
+  if (dbPost) return dbPost;
+
+  // Fall back to MDX file
+  return getPostBySlug(slug);
+}
+
+export async function getAllPosts(): Promise<PostMetadata[]> {
+  // Get posts from database
+  let dbPosts: PostMetadata[] = [];
+  try {
+    const posts = await prisma.post.findMany({
+      where: { published: true },
+      select: {
+        slug: true,
+        title: true,
+        description: true,
+        tags: true,
+        category: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    dbPosts = posts.map((post) => ({
+      slug: post.slug,
+      title: post.title,
+      date: post.createdAt.toISOString().split('T')[0],
+      description: post.description,
+      tags: post.tags,
+      category: post.category,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch posts from database:', error);
+  }
+
+  // Get posts from MDX files
   const slugs = getPostSlugs();
-  const posts = slugs
+  const mdxPosts = slugs
     .map((slug) => {
       const post = getPostBySlug(slug);
       if (!post) return null;
@@ -66,10 +128,19 @@ export function getAllPosts(): PostMetadata[] {
         category: post.category,
       };
     })
-    .filter((post): post is PostMetadata => post !== null)
-    .sort((a, b) => (a.date > b.date ? -1 : 1));
+    .filter((post): post is PostMetadata => post !== null);
 
-  return posts;
+  // Combine and deduplicate (DB posts take precedence)
+  const allPosts = [...dbPosts];
+  const dbSlugs = new Set(dbPosts.map((p) => p.slug));
+
+  mdxPosts.forEach((mdxPost) => {
+    if (!dbSlugs.has(mdxPost.slug)) {
+      allPosts.push(mdxPost);
+    }
+  });
+
+  return allPosts.sort((a, b) => (a.date > b.date ? -1 : 1));
 }
 
 export function getPostsByTag(tag: string): PostMetadata[] {

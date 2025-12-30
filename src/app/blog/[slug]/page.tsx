@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation';
-import { getPostBySlug, getAllPosts } from '@/lib/posts';
+import { getPostBySlugCombined, getAllPosts } from '@/lib/posts';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import Comments from '@/components/Comments';
 
 export async function generateStaticParams() {
-  const posts = getAllPosts();
+  const posts = await getAllPosts();
   return posts.map((post) => ({
     slug: post.slug,
   }));
@@ -14,7 +14,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlugCombined(slug);
 
   if (!post) {
     return {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
+  const post = await getPostBySlugCombined(slug);
 
   if (!post) {
     notFound();
