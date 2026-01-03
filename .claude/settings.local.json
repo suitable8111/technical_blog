@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd database-backed CMS with authentication\n\n- Add PostgreSQL database with Prisma ORM\n- Implement NextAuth.js authentication system\n- Create admin dashboard for post management \\(CRUD operations\\)\n- Add API routes for posts management\n- Update post reading logic to support both database and MDX files\n- Create web-based editor for adding/editing/deleting posts\n- Add admin account creation script\n- Update documentation with database setup instructions\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

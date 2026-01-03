@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { getAllPosts } from '@/lib/posts';
 import { format } from 'date-fns';
 
-export default function Home() {
-  const posts = getAllPosts().slice(0, 5);
+export default async function Home() {
+  const allPosts = await getAllPosts();
+  const posts = allPosts.slice(0, 5);
 
   return (
     <div className="space-y-12">

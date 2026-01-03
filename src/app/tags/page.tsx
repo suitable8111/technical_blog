@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { getAllTags, getAllPosts } from '@/lib/posts';
 
-export default function TagsPage() {
-  const tags = getAllTags();
-  const allPosts = getAllPosts();
+export default async function TagsPage() {
+  const tags = await getAllTags();
+  const allPosts = await getAllPosts();
 
   const tagCounts = tags.map((tag) => ({
     tag,

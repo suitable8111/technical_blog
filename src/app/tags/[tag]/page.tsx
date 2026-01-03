@@ -3,7 +3,7 @@ import { getPostsByTag, getAllTags } from '@/lib/posts';
 import { format } from 'date-fns';
 
 export async function generateStaticParams() {
-  const tags = getAllTags();
+  const tags = await getAllTags();
   return tags.map((tag) => ({
     tag,
   }));
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tag: stri
 
 export default async function TagPage({ params }: { params: Promise<{ tag: string }> }) {
   const { tag } = await params;
-  const posts = getPostsByTag(tag);
+  const posts = await getPostsByTag(tag);
 
   return (
     <div className="space-y-8">

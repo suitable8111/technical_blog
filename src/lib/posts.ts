@@ -101,7 +101,7 @@ export async function getAllPosts(): Promise<PostMetadata[]> {
       orderBy: { createdAt: 'desc' },
     });
 
-    dbPosts = posts.map((post) => ({
+    dbPosts = posts.map((post: any) => ({
       slug: post.slug,
       title: post.title,
       date: post.createdAt.toISOString().split('T')[0],
@@ -143,18 +143,18 @@ export async function getAllPosts(): Promise<PostMetadata[]> {
   return allPosts.sort((a, b) => (a.date > b.date ? -1 : 1));
 }
 
-export function getPostsByTag(tag: string): PostMetadata[] {
-  const allPosts = getAllPosts();
+export async function getPostsByTag(tag: string): Promise<PostMetadata[]> {
+  const allPosts = await getAllPosts();
   return allPosts.filter((post) => post.tags.includes(tag));
 }
 
-export function getPostsByCategory(category: string): PostMetadata[] {
-  const allPosts = getAllPosts();
+export async function getPostsByCategory(category: string): Promise<PostMetadata[]> {
+  const allPosts = await getAllPosts();
   return allPosts.filter((post) => post.category === category);
 }
 
-export function getAllTags(): string[] {
-  const allPosts = getAllPosts();
+export async function getAllTags(): Promise<string[]> {
+  const allPosts = await getAllPosts();
   const tags = new Set<string>();
   allPosts.forEach((post) => {
     post.tags.forEach((tag) => tags.add(tag));
@@ -162,8 +162,8 @@ export function getAllTags(): string[] {
   return Array.from(tags).sort();
 }
 
-export function getAllCategories(): string[] {
-  const allPosts = getAllPosts();
+export async function getAllCategories(): Promise<string[]> {
+  const allPosts = await getAllPosts();
   const categories = new Set<string>();
   allPosts.forEach((post) => {
     categories.add(post.category);
