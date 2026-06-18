@@ -1,0 +1,88 @@
+---
+title: "초 단위 전쟁: Browser Use는 어떻게 클라우드 브라우저를 1초 미만에 띄웠나"
+date: "2026-06-18"
+description: "Browser Use Cloud는 브라우저 세션마다 개별 Firecracker VM을 할당하는 새로운 구조로 전환했습니다. 그 결과는 다음과 같습니다."
+tags: ["Firecracker", "EC2", "클라우드브라우저", "VM최적화", "Browser Use", "headless브라우저"]
+category: "스크랩"
+---
+
+## 한눈에 보는 핵심 요약
+
+Browser Use Cloud는 브라우저 세션마다 **개별 Firecracker VM**을 할당하는 새로운 구조로 전환했습니다. 그 결과는 다음과 같습니다.
+
+- **시작 시간**: 새 세션 시작을 1초 미만으로 단축 (VM cold start는 400ms 미만)
+- **비용**: 브라우저 시간당 $0.06 → **$0.02** (약 3분의 1 수준)
+- **안정성**: 1만 세션 스트레스 테스트에서 p50 825ms, p99 1.35초, 그리고 **모든 브라우저가 성공적으로 시작**
+
+클라우드에서 브라우저 자동화를 다루는 분이라면, 이 글은 "빠르고·격리되고·저렴한" 세 마리 토끼를 어떻게 잡았는지에 대한 좋은 엔지니어링 사례가 될 거예요.
+
+## 왜 Unikraft를 떠났을까
+
+이전 구조는 unikernel 기반의 **Unikraft**를 사용했습니다. 전체 리눅스를 부팅하지 않고 목적에 맞춘 작은 이미지를 로드하기 때문에 유휴 비용이 낮다는 장점이 있었죠.
+
+문제는 **트래픽 급증 대응**이었습니다. Unikraft에는 쓸 만한 내장 오토스케일링이 없어, 엔지니어가 수동으로 인스턴스를 추가해야 했습니다. 결국 한 부하 테스트 중 **프로덕션이 45분간 중단**되는 사고가 발생했고, 이것이 재설계의 결정적 계기가 되었습니다.
+
+## 핵심 선택 1: 자체 Control Plane
+
+Firecracker는 VM을 만들고 격리해 주지만, **언제·어디에·몇 개를 띄울지**는 결정해 주지 않습니다. 그래서 Browser Use는 직접 control plane을 만들었습니다.
+
+- 브라우저 요청이 오면 여유 있는 머신을 선택
+- 트래픽이 늘면 머신을 추가, 줄어들면 제거 대상 머신에는 새 세션을 보내지 않음(드레이닝)
+- AWS CloudWatch가 보통 1분 단위로 반응하는 것과 달리, **실시간**으로 플릿 상태를 파악
+
+특히 "아직 시작 중인 브라우저", "제거 중인 머신"처럼 일반 지표에는 없는 정보를 control plane이 직접 알고 있다는 점이 차별점입니다.
+
+## 핵심 선택 2: `.metal` 대신 정규 EC2
+
+보통 AWS에서 Firecracker를 돌릴 땐 물리 서버 전체를 빌리는 `.metal` 인스턴스를 씁니다. 하지만 Browser Use는 **정규 EC2** 위에서 Firecracker를 실행하는 '중첩 가상화'를 택했습니다.
+
+| 항목 | 정규 EC2의 이점 | 대가 |
+|---|---|---|
+| 확보 속도 | 더 빨리 확보 가능 | VM 안의 VM 구조 |
+| 비용 | 유지 비용이 낮음 | 두 VM 계층을 지나는 지연 |
+| 기동 | 이미지 부팅 후 약 30초 만에 서비스 | — |
+
+빠른 scale-up과 낮은 비용을 위해 지연을 감수하고, 대신 **실행 경로 최적화**에 집중하는 전략입니다.
+
+## 3대 병목, 이렇게 깼다
+
+### ① 메모리 복원: 9.8초 → 3.1초
+
+프로덕션 브라우저는 처음부터 부팅하지 않고 **snapshot**에서 재개합니다. 그런데 cold start 시 **page fault가 전체 VM exit의 72%**를 차지하는 게 문제였습니다.
+
+- **4KB → 2MB 페이지**: 한 페이지가 512배 더 많은 메모리를 덮어 page fault 급감
+- **`userfaultfd` custom handler**: Chromium이 먼저 접근할 메모리를 미리 로드
+- 결과: 재개당 호스트 요청이 약 **10만 회 → 약 1,100회로 91배 감소**
+
+여기에 더해, 오래된 PS/2 키보드를 찾던 500ms 검사를 끄고, 준비 상태 확인을 HTTP polling에서 `vsock` 로그 읽기로 바꿔 1ms 미만으로 단축했습니다.
+
+### ② Chromium 시작과 CPU 배치
+
+Chromium은 시작 순간에 renderer·compositor·V8 isolate를 한꺼번에 만들어 CPU를 크게 씁니다. 반면 시작 후 자동화는 대부분 '기다림'이라 조용하죠. 이 특성을 이용해 한 호스트에 여러 브라우저를 packing합니다.
+
+- 재개·시작 중에는 **vCPU를 unpinned**로 두어 부하 분산, ready가 되면 안정 코어에 **pinning**
+- hyperthread 경쟁을 피하기 위해 각 브라우저에 물리 코어의 **sibling thread 둘 다 할당**
+- pinning된 vCPU에 **real-time priority** 부여
+- 결과: 변경 전 세션의 **17% 손실 → 변경 후 손실 0**
+
+### ③ 화면 없는 Stealth 브라우저
+
+일반 headless Chromium은 anti-bot 사이트에서 차단 회피율이 고작 **2%**입니다. 창을 띄우는 headful로 바꾸면 50%까지 오르지만, display server·GPU·compositor 비용이 듭니다.
+
+Browser Use는 **완전한 headless를 유지하면서** 브라우저 자체를 손봤습니다.
+
+- **Chromium fork**: JS 주입 대신 낮은 수준을 패치해 `navigator.webdriver` 같은 값이 처음부터 노출되지 않게 함
+- **Fingerprinting**: macOS·Windows·Linux 전반의 실제 fingerprint 수만 개 사용
+- 결과: stealth benchmark **81%**, Halluminate BrowserBench **84.8%** 차단 회피율
+
+## 연결은 어떻게? 단순한 Edge Router
+
+브라우저가 준비되면 사용자는 WebSocket을 통해 **CDP(Chrome DevTools Protocol)**로 연결합니다. 브라우저 플릿 앞단에는 단순한 edge router들이 있어, 연결을 받아 control plane에 위치를 묻고 raw CDP 바이트를 올바른 VM으로 전달만 합니다. 배치 결정은 전적으로 control plane의 몫이라, router 하나가 죽어도 다른 router가 즉시 새 연결을 받을 수 있습니다.
+
+## 마치며
+
+이 사례의 핵심은 "화려한 신기술"이 아니라 **병목을 끝까지 측정하고 깎아낸 집요함**입니다. 2MB 페이지, `userfaultfd`, vCPU pinning, Chromium 저수준 패치까지 — 각각은 작아 보여도 누적되면 9.8초를 1초 미만으로 끌어내립니다. 클라우드 브라우저나 VM 기반 격리 환경을 설계 중이라면, 이 최적화 목록은 그대로 체크리스트로 삼을 만합니다.
+
+---
+
+원문: [https://news.hada.io/topic?id=30602](https://news.hada.io/topic?id=30602)
