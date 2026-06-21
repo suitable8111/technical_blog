@@ -1,0 +1,65 @@
+---
+title: "Codex에서 Claude도, GLM도 쓰고 싶다면? 로컬 프록시 'opencodex' 한 줄 설치 가이드"
+date: "2026-06-21"
+description: "OpenAI의 코딩 도구 Codex는 기본적으로 OpenAI 모델만 사용할 수 있습니다. Claude나 GLM-5.2 같은 다른 모델을 쓰고 싶어도 OpenAI가 공식 지원해줄 때까지 기다려야 했죠. 이 답답함을 풀어주는 오픈소스 프로젝트가 바로 opencodex입니다"
+tags: ["opencodex", "Codex", "로컬프록시", "LLM", "Claude", "오픈소스"]
+category: "스크랩"
+---
+
+## 한눈에 보는 핵심
+
+OpenAI의 코딩 도구 **Codex**는 기본적으로 OpenAI 모델만 사용할 수 있습니다. Claude나 GLM-5.2 같은 다른 모델을 쓰고 싶어도 OpenAI가 공식 지원해줄 때까지 기다려야 했죠. 이 답답함을 풀어주는 오픈소스 프로젝트가 바로 **opencodex**입니다.
+
+opencodex는 Codex와 LLM 프로바이더 사이에 끼어드는 **로컬 프록시**로, 둘 사이의 프로토콜을 실시간으로 번역해 줍니다. 스트리밍, 도구 호출(tool call), 추론 토큰, 이미지까지 전부 양방향으로 작동합니다. 덕분에 Codex 앱·CLI·SDK의 모델 피커에 다른 모델이 **네이티브 모델처럼** 정상 등록되고, 한 세션 안에서 GPT와 등록된 다른 모델을 자유롭게 오가며 쓸 수 있습니다.
+
+## 설치와 사용은 단 몇 줄
+
+```bash
+npm install -g @bitkyc08/opencodex
+
+ocx init   # 프로바이더 선택
+ocx start  # 프록시 시작
+
+codex -m "anthropic/claude-opus-4-8" "이 버그 고쳐줘"
+```
+
+모델은 `provider/model` 형식으로 지정하면 되고, 라우팅된 모델은 Codex 모델 선택기에 그대로 노출됩니다.
+
+## 어떻게 작동하나
+
+Codex는 **Responses API**(`/v1/responses`)라는 자체 프로토콜만 사용하는데, 대부분의 LLM은 이를 구현하지 않습니다. opencodex는 이 간극을 5개의 프로토콜 어댑터로 메웁니다.
+
+- Anthropic Messages
+- Google Gemini
+- Azure
+- OpenAI passthrough
+- OpenAI-compatible Chat Completions
+
+여기에 **40개 이상의 프로바이더**가 기본 내장되어 있습니다.
+
+## 만들면서 부딪힌 문제들
+
+프록시 설계 자체는 참고할 오픈소스가 많아 어렵지 않았지만, **Codex의 네이티브한 경험**을 살리기 위해 codex-rs를 직접 분해해야 했다고 합니다. 몇 가지 흥미로운 난제가 있었습니다.
+
+- **Reasoning effort 매핑**: 프로바이더마다 추론 강도를 부르는 이름이 다릅니다. GLM은 `max`, Codex는 `xhigh`라고 부르고, Kimi는 아예 이 파라미터를 거부합니다. 그래서 모델별 변환 테이블을 따로 만들었습니다.
+- **세션 히스토리**: Codex는 각 스레드의 `model_provider`를 DB에 저장하는데, opencodex로 전환하면 기존 세션이 보이지 않게 됩니다. SQLite를 직접 열어 inject/restore 시 태그를 바꿔주는 마이그레이터를 만들고, 파일 mtime은 보존해 재개 순서가 흐트러지지 않도록 처리했습니다.
+- **사이드카(Sidecar)**: OpenAI가 아닌 모델은 웹 검색이나 이미지 이해 기능이 없습니다. 이를 위해 ChatGPT 로그인을 통한 `gpt-5.4-mini` 사이드카로 해당 기능을 라우팅해서, Claude나 GLM에서도 실제 웹 검색이 동작하게 만들었습니다.
+
+## 끄면 깔끔하게 원상복구
+
+```bash
+ocx stop
+```
+
+`ocx stop`을 누르면 Codex 설정·카탈로그·세션 히스토리가 전부 원본으로 복원됩니다. **잔여물이 남지 않습니다.** 대시보드의 Stop 버튼이나 `ocx service uninstall`로도 동일한 결과를 얻을 수 있습니다.
+
+## 정리
+
+opencodex는 "Codex는 좋은데 모델 선택권이 없다"는 갈증을 정확히 겨냥한 도구입니다. MIT 라이선스에 macOS·Linux·Windows를 모두 네이티브로 지원하며(WSL 불필요), 한 번 설치해두면 GPT와 Claude, GLM을 한 세션에서 자유롭게 넘나들 수 있습니다.
+
+- **GitHub**: https://github.com/lidge-jun/opencodex
+- **npm**: `npm install -g @bitkyc08/opencodex`
+
+---
+
+원문: [https://news.hada.io/topic?id=30685](https://news.hada.io/topic?id=30685)
