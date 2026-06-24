@@ -3,7 +3,6 @@ import { getPostBySlugCombined, getAllPosts } from '@/lib/posts';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { compileMDX } from 'next-mdx-remote/rsc';
-import Comments from '@/components/Comments';
 import ResponsiveAdFit from '@/components/ResponsiveAdFit';
 
 export async function generateStaticParams() {
@@ -81,8 +80,6 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           ← Back to all posts
         </Link>
       </footer>
-
-      <Comments />
     </article>
   );
 }
