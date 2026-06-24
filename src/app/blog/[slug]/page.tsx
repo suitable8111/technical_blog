@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import Comments from '@/components/Comments';
+import ResponsiveAdFit from '@/components/ResponsiveAdFit';
 
 export async function generateStaticParams() {
   const posts = await getAllPosts();
@@ -69,6 +70,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       <div className="prose dark:prose-invert max-w-none">
         {content}
       </div>
+
+      <ResponsiveAdFit />
 
       <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
         <Link
