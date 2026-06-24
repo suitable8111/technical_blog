@@ -5,37 +5,40 @@ export default async function TagsPage() {
   const tags = await getAllTags();
   const allPosts = await getAllPosts();
 
-  const tagCounts = tags.map((tag) => ({
-    tag,
-    count: allPosts.filter((post) => post.tags.includes(tag)).length,
-  }));
+  const tagCounts = tags
+    .map((tag) => ({
+      tag,
+      count: allPosts.filter((post) => post.tags.includes(tag)).length,
+    }))
+    .sort((a, b) => b.count - a.count);
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-4xl font-bold">All Tags</h1>
+    <div className="space-y-10">
+      <div>
+        <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
+          All Tags
+        </h1>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">총 {tags.length}개의 태그</p>
+      </div>
 
       {tags.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="text-gray-600 dark:text-gray-400">
-            아직 태그가 없습니다.
-          </p>
+        <div className="rounded-2xl border border-dashed border-gray-300 py-16 text-center dark:border-gray-700">
+          <p className="text-gray-500 dark:text-gray-400">아직 태그가 없습니다.</p>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-3">
           {tagCounts.map(({ tag, count }) => (
             <Link
               key={tag}
               href={`/tags/${tag}`}
-              className="group"
+              className="group inline-flex items-center gap-2 rounded-full border border-gray-200/70 bg-white px-4 py-2 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-500/10 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-indigo-500/40"
             >
-              <div className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow">
-                <span className="text-xl font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                  #{tag}
-                </span>
-                <span className="ml-2 text-sm text-gray-500">
-                  ({count})
-                </span>
-              </div>
+              <span className="text-gray-700 transition-colors group-hover:text-indigo-600 dark:text-gray-200 dark:group-hover:text-indigo-400">
+                #{tag}
+              </span>
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300">
+                {count}
+              </span>
             </Link>
           ))}
         </div>
