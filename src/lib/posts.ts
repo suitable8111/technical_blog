@@ -13,6 +13,7 @@ export interface Post {
   tags: string[];
   category: string;
   content: string;
+  image?: string;
 }
 
 export interface PostMetadata {
@@ -22,6 +23,16 @@ export interface PostMetadata {
   description: string;
   tags: string[];
   category: string;
+  image?: string;
+}
+
+/** 본문 첫 번째 마크다운/HTML 이미지를 카드 썸네일 후보로 추출한다. */
+function extractFirstImage(content: string): string | undefined {
+  const md = content.match(/!\[[^\]]*\]\(([^)\s]+)/);
+  if (md) return md[1];
+  const html = content.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (html) return html[1];
+  return undefined;
 }
 
 export function getPostSlugs() {
@@ -46,6 +57,7 @@ export function getPostBySlug(slug: string): Post | null {
       tags: data.tags || [],
       category: data.category || 'Uncategorized',
       content,
+      image: data.image || extractFirstImage(content),
     };
   } catch {
     return null;
@@ -116,7 +128,7 @@ export async function getAllPosts(): Promise<PostMetadata[]> {
   // Get posts from MDX files
   const slugs = getPostSlugs();
   const mdxPosts = slugs
-    .map((slug) => {
+    .map((slug): PostMetadata | null => {
       const post = getPostBySlug(slug);
       if (!post) return null;
       return {
@@ -126,6 +138,7 @@ export async function getAllPosts(): Promise<PostMetadata[]> {
         description: post.description,
         tags: post.tags,
         category: post.category,
+        image: post.image,
       };
     })
     .filter((post): post is PostMetadata => post !== null);

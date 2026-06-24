@@ -1,69 +1,60 @@
 import Link from 'next/link';
 import { getAllPosts } from '@/lib/posts';
-import { format } from 'date-fns';
+import PostCard from '@/components/PostCard';
 
 export default async function Home() {
   const allPosts = await getAllPosts();
-  const posts = allPosts.slice(0, 5);
+  const posts = allPosts.slice(0, 6);
 
   return (
-    <div className="space-y-12">
-      <section className="text-center py-12">
-        <h1 className="text-5xl font-bold mb-4">Welcome to Tech Blog</h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400">
-          기술에 대한 생각과 경험을 공유합니다
-        </p>
+    <div className="space-y-16">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 px-6 py-20 text-center shadow-xl">
+        <div className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-fuchsia-300/20 blur-3xl" />
+        <div className="relative">
+          <span className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white/90 backdrop-blur-sm">
+            매일 자동 큐레이션되는 테크 뉴스
+          </span>
+          <h1 className="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
+            Tech Blog
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
+            AI·개발·기술 트렌드를 한곳에서. 매일 새로운 글이 올라옵니다.
+          </p>
+          <Link
+            href="/blog"
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-indigo-700 shadow-lg transition-transform hover:scale-105"
+          >
+            모든 글 보기
+            <span aria-hidden>→</span>
+          </Link>
+        </div>
       </section>
 
+      {/* Recent posts */}
       <section>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">Recent Posts</h2>
-          <Link href="/blog" className="text-blue-600 dark:text-blue-400 hover:underline">
-            View all posts →
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">최신 글</h2>
+            <p className="mt-1 text-gray-500 dark:text-gray-400">가장 최근에 올라온 소식</p>
+          </div>
+          <Link
+            href="/blog"
+            className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          >
+            전체 보기 →
           </Link>
         </div>
 
         {posts.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <p className="text-gray-600 dark:text-gray-400">
-              아직 포스트가 없습니다. 첫 번째 포스트를 작성해보세요!
-            </p>
+          <div className="rounded-2xl border border-dashed border-gray-300 py-16 text-center dark:border-gray-700">
+            <p className="text-gray-500 dark:text-gray-400">아직 포스트가 없습니다.</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <article
-                key={post.slug}
-                className="border border-gray-200 dark:border-gray-800 rounded-lg p-6 hover:shadow-lg transition-shadow"
-              >
-                <Link href={`/blog/${post.slug}`}>
-                  <h3 className="text-2xl font-bold mb-2 hover:text-blue-600 dark:hover:text-blue-400">
-                    {post.title}
-                  </h3>
-                </Link>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  {post.description}
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <time className="text-sm text-gray-500">
-                      {format(new Date(post.date), 'yyyy년 MM월 dd일')}
-                    </time>
-                    <span className="text-sm text-gray-500">{post.category}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {post.tags.map((tag) => (
-                      <Link
-                        key={tag}
-                        href={`/tags/${tag}`}
-                        className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
-                      >
-                        #{tag}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </article>
+              <PostCard key={post.slug} post={post} />
             ))}
           </div>
         )}

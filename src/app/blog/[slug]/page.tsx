@@ -42,23 +42,25 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   });
 
   return (
-    <article className="max-w-3xl mx-auto">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <time className="text-gray-500">
-              {format(new Date(post.date), 'yyyy년 MM월 dd일')}
-            </time>
-            <span className="text-gray-500">{post.category}</span>
-          </div>
+    <article className="mx-auto max-w-3xl">
+      <header className="mb-10">
+        <div className="mb-4 flex items-center gap-3 text-sm">
+          <span className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1 font-medium text-white">
+            {post.category}
+          </span>
+          <time className="text-gray-500 dark:text-gray-400">
+            {format(new Date(post.date), 'yyyy년 MM월 dd일')}
+          </time>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          {post.title}
+        </h1>
+        <div className="mt-5 flex flex-wrap gap-2">
           {post.tags.map((tag) => (
             <Link
               key={tag}
               href={`/tags/${tag}`}
-              className="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+              className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/20"
             >
               #{tag}
             </Link>
@@ -66,16 +68,16 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </div>
       </header>
 
-      <div className="prose dark:prose-invert max-w-none">
+      <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-xl prose-img:shadow-md">
         {content}
       </div>
 
       <ResponsiveAdFit />
 
-      <footer className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
+      <footer className="mt-12 border-t border-gray-200 pt-8 dark:border-white/10">
         <Link
           href="/blog"
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
         >
           ← Back to all posts
         </Link>
