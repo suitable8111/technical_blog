@@ -1,6 +1,8 @@
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { getPostsByTag, getAllTags } from '@/lib/posts';
 import PostCard from '@/components/PostCard';
+import InFeedAdCard from '@/components/InFeedAdCard';
 
 export async function generateStaticParams() {
   const tags = await getAllTags();
@@ -46,8 +48,11 @@ export default async function TagPage({ params }: { params: Promise<{ tag: strin
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => (
-            <PostCard key={post.slug} post={post} />
+          {posts.map((post, i) => (
+            <Fragment key={post.slug}>
+              <PostCard post={post} />
+              {i === Math.min(5, posts.length - 1) && <InFeedAdCard />}
+            </Fragment>
           ))}
         </div>
       )}

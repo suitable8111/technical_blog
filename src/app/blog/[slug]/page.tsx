@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import ResponsiveAdFit from '@/components/ResponsiveAdFit';
+import SidebarAd from '@/components/SidebarAd';
 
 export async function generateStaticParams() {
   const posts = await getAllPosts();
@@ -42,7 +43,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   });
 
   return (
-    <article className="mx-auto max-w-3xl">
+    <div className="flex flex-col gap-8 lg:flex-row lg:justify-center">
+    <article className="mx-auto w-full max-w-3xl lg:mx-0">
       <header className="mb-10">
         <div className="mb-4 flex items-center gap-3 text-sm">
           <span className="rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1 font-medium text-white">
@@ -83,5 +85,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </Link>
       </footer>
     </article>
+
+      <aside className="hidden w-[300px] shrink-0 lg:block">
+        <div className="sticky top-24">
+          <SidebarAd />
+        </div>
+      </aside>
+    </div>
   );
 }
