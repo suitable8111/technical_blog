@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getAllPosts } from '@/lib/posts';
 import PostCard from '@/components/PostCard';
+import ResponsiveAdFit from '@/components/ResponsiveAdFit';
 
 export default async function Home() {
   const allPosts = await getAllPosts();
@@ -31,6 +32,9 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+
+      {/* 광고 배너 */}
+      <ResponsiveAdFit />
 
       {/* Recent posts */}
       <section>
