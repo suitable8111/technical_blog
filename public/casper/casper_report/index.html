@@ -51,6 +51,7 @@
   .tag{ display:inline-block; background:#1f2632; border-radius:6px; padding:1px 6px; margin:1px 2px 1px 0; font-size:10px; }
   .selbar{ background:#13233f; border:1px solid var(--accent); border-radius:9px; padding:8px 12px;
            margin-bottom:12px; display:none; align-items:center; gap:10px; font-size:13px; }
+  .adfit{ display:flex; justify-content:center; margin:8px 0 24px; min-height:100px; }
 </style>
 </head>
 <body>
@@ -60,6 +61,8 @@
     기획전 <b>E20260666</b> · AX05 (2026 캐스퍼 일렉트릭) ·
     수집시각 <span id="ts"></span> · 스캔범위 sido (시/도별 대표 시/군/구 1곳; 페이지네이션 포함)
   </div>
+
+  <div class="adfit" id="adfit-top"></div>
 
   <div class="cards" id="stat"></div>
 
@@ -98,6 +101,8 @@
       </table>
     </div>
   </section>
+
+  <div class="adfit" id="adfit-bottom"></div>
 
   <div class="meta">
     ⚠️ 수집 시점의 스냅샷이며 재고는 실시간 변동됩니다. 옵션은 차량별 기본 장착 선택품목입니다.
@@ -209,6 +214,24 @@ document.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{
 ['q','trim','center','maxp'].forEach(id=>document.getElementById(id).addEventListener('input',render));
 
 renderHeat(); render();
+
+// ── 카카오 애드핏 (PC 728x90 / 모바일 320x100, 화면폭에 맞는 하나만 마운트) ──
+const ADFIT_PC = { unit:'DAN-jjknDJxb29QWS2Wt', w:728, h:90 };
+const ADFIT_MO = { unit:'DAN-Jp2VnkvCqNs51s5k', w:320, h:100 };
+function mountAdFit(id){
+  const c = document.getElementById(id); if(!c) return;
+  const a = window.matchMedia('(min-width: 768px)').matches ? ADFIT_PC : ADFIT_MO;
+  c.innerHTML = '';
+  const ins = document.createElement('ins');
+  ins.className = 'kakao_ad_area'; ins.style.display = 'none';
+  ins.setAttribute('data-ad-width', a.w);
+  ins.setAttribute('data-ad-height', a.h);
+  ins.setAttribute('data-ad-unit', a.unit);
+  const s = document.createElement('script');
+  s.async = true; s.type = 'text/javascript'; s.src = '//t1.daumcdn.net/kas/static/ba.min.js';
+  c.appendChild(ins); c.appendChild(s);
+}
+mountAdFit('adfit-top'); mountAdFit('adfit-bottom');
 </script>
 </body>
 </html>
