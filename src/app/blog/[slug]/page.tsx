@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import ResponsiveAdFit from '@/components/ResponsiveAdFit';
-import SidebarAd from '@/components/SidebarAd';
+import SidebarAds from '@/components/SidebarAds';
 
 export async function generateStaticParams() {
   const posts = await getAllPosts();
@@ -87,9 +87,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     </article>
 
       <aside className="hidden w-[300px] shrink-0 lg:block">
-        <div className="sticky top-24">
-          <SidebarAd />
-        </div>
+        <SidebarAds />
       </aside>
     </div>
   );
