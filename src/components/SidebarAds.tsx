@@ -5,8 +5,9 @@ import AdFitBanner from './AdFitBanner';
 
 // 사이드바 광고 단위 ID 목록 (위 → 아래 순서). 여기에 추가하면 사이드바에 쌓인다.
 const SIDEBAR_UNITS = [
-  'DAN-HkChJJcwmdmvKyPN', // 300x250
-  // 'DAN-새로운ID', // 300x250  ← 여기에 추가
+  'DAN-HkChJJcwmdmvKyPN', // 300x250 (사이드1)
+  'DAN-b44zvnLry5LybBEo', // 300x250 (사이드2)
+  'DAN-GOCNjmiC7QgUVy9x', // 300x250 (사이드3)
 ];
 
 /**
