@@ -58,6 +58,34 @@
   .selbar{ background:#13233f; border:1px solid var(--accent); border-radius:9px; padding:8px 12px;
            margin-bottom:12px; display:none; align-items:center; gap:10px; font-size:13px; }
   .adfit{ display:flex; justify-content:center; margin:8px 0 24px; min-height:100px; }
+  .tblwrap{ overflow:auto; max-height:680px; }
+
+  /* ── 모바일: 테이블을 카드형으로(가로 잘림 해결) ── */
+  @media (max-width:720px){
+    .wrap{ padding:16px 12px 64px; }
+    h1{ font-size:20px; }
+    .topbar{ gap:10px; }
+    .navbtn{ padding:8px 13px; font-size:12px; }
+    section{ padding:14px 12px; }
+    h2{ flex-direction:column; align-items:flex-start; gap:4px; }
+    .controls{ gap:8px; }
+    .controls input, .controls select{ flex:1 1 140px; min-width:0 !important; width:auto !important; }
+    .heat{ grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); }
+
+    .tblwrap{ overflow:visible; max-height:none; }
+    #tbl thead{ display:none; }
+    #tbl, #tbl tbody{ display:block; width:100%; }
+    #tbl tr{ display:block; border:1px solid var(--line); border-radius:10px;
+             background:#0f131a; padding:10px 13px; margin-bottom:10px; }
+    #tbl td{ display:block; border:none; border-bottom:1px solid #1b1f28;
+             padding:6px 0; white-space:normal !important; text-align:left !important; }
+    #tbl tr td:last-child{ border-bottom:none; }
+    #tbl td::before{ content:attr(data-label); display:block; color:var(--sub);
+                     font-size:10.5px; font-weight:600; margin-bottom:2px; }
+    #tbl td[data-label="트림"]{ padding-top:0; }
+    #tbl td[data-label="판매금액"]{ font-size:15px; font-weight:700; }
+    .opt, .foundIn{ max-width:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -96,7 +124,7 @@
       <input id="fint" placeholder="내장색상" style="width:120px" />
       <input id="fopt" placeholder="옵션" style="width:120px" />
     </div>
-    <div style="overflow:auto; max-height:680px;">
+    <div class="tblwrap">
       <table id="tbl">
         <thead><tr>
           <th data-sort="trim">트림</th>
@@ -213,15 +241,15 @@ function render(){
       : '<span class="muted">-</span>';
     const foundHtml = (c.foundIn||[]).map(f=>`<span class="tag${f===selectedRegion?'" style="background:#1d4ed8;color:#fff':''}">${f}</span>`).join('');
     return `<tr>
-      <td><span class="pill t-${c.trim}">${c.trim}</span></td>
-      <td class="nowrap">${c.ext}${c.colorPkg?` <span class="muted">(${c.colorPkg})</span>`:''}</td>
-      <td>${c.int}</td>
-      <td class="right nowrap">${won(c.price)}</td>
-      <td class="opt">${optHtml}</td>
-      <td class="nowrap">${c.center}</td>
-      <td class="nowrap">${fmtDate(c.prdnDt)}</td>
-      <td class="right">${c.nreg}</td>
-      <td class="foundIn">${foundHtml}</td></tr>`;
+      <td data-label="트림"><span class="pill t-${c.trim}">${c.trim}</span></td>
+      <td data-label="외장색상" class="nowrap">${c.ext}${c.colorPkg?` <span class="muted">(${c.colorPkg})</span>`:''}</td>
+      <td data-label="내장색상">${c.int}</td>
+      <td data-label="판매금액" class="right nowrap">${won(c.price)}</td>
+      <td data-label="옵션" class="opt">${optHtml}</td>
+      <td data-label="출고센터" class="nowrap">${c.center}</td>
+      <td data-label="생산일" class="nowrap">${fmtDate(c.prdnDt)}</td>
+      <td data-label="노출지역수" class="right">${c.nreg}</td>
+      <td data-label="노출 지역 목록" class="foundIn">${foundHtml}</td></tr>`;
   }).join('');
 }
 document.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{
