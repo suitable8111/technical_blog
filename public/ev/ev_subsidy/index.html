@@ -51,10 +51,14 @@
   .muted{color:var(--mut)}
   .note{font-size:12px;color:var(--mut);margin-top:14px;line-height:1.6}
   .hide{display:none}
+  .adfit{display:flex;justify-content:center;margin:16px 0;min-height:52px}
+  #adfit-side{position:fixed;top:100px;right:calc((100vw - 1180px)/2 - 180px);display:none;z-index:5}
+  @media(min-width:1560px){#adfit-side{display:block}}
   @media(max-width:640px){.hcol{display:none}.rk{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<div id="adfit-side"></div>
 <div class="wrap">
   <div class="topbar">
     <h1>전기차 모델별 · 최대 보조금 지자체</h1>
@@ -62,6 +66,8 @@
   </div>
   <div class="sub">2026년도 전기승용(일반승용) 기준 · 출처 <a href="https://ev.or.kr/nportal/buySupprt/initPsLocalCarPirceAction.do" target="_blank" rel="noopener">ev.or.kr 지자체 차종별 보조금</a> · 수집 2026. 6. 26. AM 10:32:06<br>
   금액 단위 <b>만원</b> · 보조금 = 국비 + 지방비 · 한국환경공단(국비 기준선)은 지자체 집계에서 제외</div>
+
+  <div class="adfit" id="adfit-top"></div>
 
   <div class="stats">
     <div class="stat"><b>116</b><span>모델 수</span></div>
@@ -123,6 +129,8 @@
     표에서 모델 행을 클릭하면 전국 지자체 보조금 순위가 펼쳐집니다.
     예산 소진·차량 가격(지방비 비례 한도)·접수 시점에 따라 실제 수령액은 달라질 수 있으니 구매 전 해당 지자체 공고를 확인하세요.
   </div>
+
+  <div class="adfit" id="adfit-sq"></div>
 </div>
 
 <script>
@@ -240,6 +248,30 @@ rsido.onchange=()=>{fillRegions();renderRegion();};
 rregion.onchange=renderRegion;
 document.getElementById('rsearch').oninput=renderRegion;
 fillRegions();renderRegion();
+
+/* ---------- 카카오 애드핏 ---------- */
+const AD={
+  pcH:{unit:'DAN-POwC5QeLUrYkxklw',w:728,h:90},   // 가로형 PC
+  moH:{unit:'DAN-EqqwfYkJxM8GSIQS',w:320,h:50},   // 가로형 모바일
+  sq :{unit:'DAN-UtNyIJBZRUxCsbIJ',w:300,h:250},  // 정사각 PC/모바일
+  side:{unit:'DAN-xVxe3OvWo6Tf9pXx',w:160,h:600}, // 세로형 PC
+};
+function adIns(c,a){
+  if(!c) return;
+  const ins=document.createElement('ins');
+  ins.className='kakao_ad_area'; ins.style.display='none';
+  ins.setAttribute('data-ad-width',a.w);
+  ins.setAttribute('data-ad-height',a.h);
+  ins.setAttribute('data-ad-unit',a.unit);
+  c.appendChild(ins);
+}
+const isPC=window.matchMedia('(min-width:768px)').matches;
+adIns(document.getElementById('adfit-top'), isPC?AD.pcH:AD.moH);
+adIns(document.getElementById('adfit-sq'), AD.sq);
+if(window.matchMedia('(min-width:1560px)').matches) adIns(document.getElementById('adfit-side'), AD.side);
+const adScript=document.createElement('script');
+adScript.async=true; adScript.src='//t1.daumcdn.net/kas/static/ba.min.js';
+document.body.appendChild(adScript);
 </script>
 </body>
 </html>
