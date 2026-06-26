@@ -52,6 +52,7 @@
   input::placeholder{ color:#5b6472; }
   .muted{ color:var(--sub); } .right{ text-align:right; } .nowrap{ white-space:nowrap; }
   .count{ color:var(--sub); font-size:12px; font-weight:400; }
+  .sublabel{ color:var(--sub); font-size:12px; font-weight:600; margin:4px 0 8px; }
   .heat{ display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:8px; }
   .reg{ border:1px solid var(--line); border-radius:9px; padding:10px; cursor:pointer; transition:.12s; }
   .reg:hover{ border-color:var(--accent); background:#1b1f28; }
@@ -117,6 +118,19 @@
   <section>
     <h2>지역별 재고 (totalCount) <span class="count">— 카드를 클릭하면 해당 지역 기준으로 차량을 필터링합니다</span></h2>
     <div class="heat" id="heat"></div>
+  </section>
+
+  <section>
+    <h2>트림별 재고 <span class="count">— 고유 차량 31대 기준 · 카드 클릭 시 해당 트림으로 필터</span></h2>
+    <div class="heat" id="trimSum"></div>
+  </section>
+
+  <section>
+    <h2>색상별 재고 <span class="count">— 고유 차량 31대 기준 · 카드 클릭 시 해당 색상으로 필터</span></h2>
+    <div class="sublabel">외장 색상</div>
+    <div class="heat" id="extSum"></div>
+    <div class="sublabel" style="margin-top:14px">내장 색상</div>
+    <div class="heat" id="intSum"></div>
   </section>
 
   <div class="adfit" id="adfit-mid"></div>
@@ -227,6 +241,32 @@ const trimSel=document.getElementById('trim'), centerSel=document.getElementById
 [...new Set(inv.map(c=>c.trim))].forEach(t=>trimSel.add(new Option(t,t)));
 [...new Set(inv.map(c=>c.center))].sort().forEach(c=>centerSel.add(new Option(c,c)));
 
+// ── 요약: 트림별 / 색상별 재고 (고유 차량 기준, 카드 클릭 시 필터) ──
+function countBy(key){
+  const m=new Map();
+  inv.forEach(c=>{ const v=(c[key]||'(미지정)'); m.set(v,(m.get(v)||0)+1); });
+  return [...m.entries()].sort((a,b)=> b[1]-a[1] || String(a[0]).localeCompare(String(b[0]),'ko'));
+}
+function sumCards(elId, entries, sel, pill, onPick){
+  const max=Math.max(...entries.map(e=>e[1]),1);
+  const el=document.getElementById(elId); if(!el) return;
+  el.innerHTML = entries.map(([v,n])=>{
+    const pct=Math.round(n/max*100);
+    const head = pill ? `<div><span class="pill t-${v}">${v}</span></div>` : `<div class="name">${v}</div>`;
+    return `<div class="reg${v===sel?' sel':''}" data-v="${String(v).replace(/"/g,'&quot;')}">
+      ${head}
+      <div class="v">${n}<span class="muted" style="font-size:12px">대</span></div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div>`;
+  }).join('');
+  el.querySelectorAll('.reg').forEach(c=>c.onclick=()=>onPick(c.dataset.v));
+}
+function renderSummaries(){
+  const fextEl=document.getElementById('fext'), fintEl=document.getElementById('fint');
+  sumCards('trimSum', countBy('trim'), trimSel.value, true,  v=>{ trimSel.value = trimSel.value===v?'':v; render(); });
+  sumCards('extSum',  countBy('ext'),  fextEl.value,  false, v=>{ fextEl.value  = fextEl.value===v?'':v;   render(); });
+  sumCards('intSum',  countBy('int'),  fintEl.value,  false, v=>{ fintEl.value  = fintEl.value===v?'':v;   render(); });
+}
+
 function render(){
   const lc = id => document.getElementById(id).value.trim().toLowerCase();
   const q=lc('q'), fext=lc('fext'), fint=lc('fint'), fopt=lc('fopt');
@@ -264,6 +304,7 @@ function render(){
       <td data-label="노출지역수" class="right">${c.nreg}</td>
       <td data-label="노출 지역 목록" class="foundIn">${foundHtml}</td></tr>`;
   }).join('');
+  renderSummaries();
 }
 document.querySelectorAll('th[data-sort]').forEach(th=>th.onclick=()=>{
   const k=th.dataset.sort; if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=1;} render();
