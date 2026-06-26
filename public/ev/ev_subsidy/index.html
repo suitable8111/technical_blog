@@ -10,6 +10,9 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:14px;line-height:1.5}
   .wrap{max-width:1180px;margin:0 auto;padding:24px 16px 80px}
   h1{font-size:24px;margin:0 0 4px}
+  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .navbtn{display:inline-flex;align-items:center;gap:7px;text-decoration:none;white-space:nowrap;background:#1c2733;color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;border:1px solid #2c3a47;transition:.12s}
+  .navbtn:hover{filter:brightness(1.18);transform:translateY(-1px)}
   .sub{color:var(--mut);font-size:13px;margin-bottom:20px}
   .sub a{color:var(--accent)}
   .stats{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 22px}
@@ -53,7 +56,10 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>전기차 모델별 · 최대 보조금 지자체</h1>
+  <div class="topbar">
+    <h1>전기차 모델별 · 최대 보조금 지자체</h1>
+    <a class="navbtn" href="https://technical-blog-mu.vercel.app/casper/casper_report/">🚗 캐스퍼 EV 재고 리포트 <span>→</span></a>
+  </div>
   <div class="sub">2026년도 전기승용(일반승용) 기준 · 출처 <a href="https://ev.or.kr/nportal/buySupprt/initPsLocalCarPirceAction.do" target="_blank" rel="noopener">ev.or.kr 지자체 차종별 보조금</a> · 수집 2026. 6. 26. AM 10:32:06<br>
   금액 단위 <b>만원</b> · 보조금 = 국비 + 지방비 · 한국환경공단(국비 기준선)은 지자체 집계에서 제외</div>
 
