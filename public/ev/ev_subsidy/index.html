@@ -124,6 +124,8 @@
     </table>
   </div>
 
+  <div class="adfit" id="adfit-mid"></div>
+
   <div class="note">
     ※ 같은 모델이라도 지자체별 <b>지방비</b> 차이로 총 보조금이 달라집니다(국비는 모델별 전국 동일).
     표에서 모델 행을 클릭하면 전국 지자체 보조금 순위가 펼쳐집니다.
@@ -255,6 +257,8 @@ const AD={
   moH:{unit:'DAN-EqqwfYkJxM8GSIQS',w:320,h:50},   // 가로형 모바일
   sq :{unit:'DAN-UtNyIJBZRUxCsbIJ',w:300,h:250},  // 정사각 PC/모바일
   side:{unit:'DAN-xVxe3OvWo6Tf9pXx',w:160,h:600}, // 세로형 PC
+  cPC:{unit:'DAN-jjknDJxb29QWS2Wt',w:728,h:90},   // 가로 PC (캐스퍼 단위 재사용)
+  cMO:{unit:'DAN-Jp2VnkvCqNs51s5k',w:320,h:100},  // 가로 모바일
 };
 function adIns(c,a){
   if(!c) return;
@@ -267,6 +271,7 @@ function adIns(c,a){
 }
 const isPC=window.matchMedia('(min-width:768px)').matches;
 adIns(document.getElementById('adfit-top'), isPC?AD.pcH:AD.moH);
+adIns(document.getElementById('adfit-mid'), isPC?AD.cPC:AD.cMO);
 adIns(document.getElementById('adfit-sq'), AD.sq);
 if(window.matchMedia('(min-width:1560px)').matches) adIns(document.getElementById('adfit-side'), AD.side);
 const adScript=document.createElement('script');
