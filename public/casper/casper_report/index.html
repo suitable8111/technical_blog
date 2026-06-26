@@ -12,6 +12,12 @@
         font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; }
   .wrap{ max-width:1240px; margin:0 auto; padding:28px 20px 80px; }
   h1{ font-size:24px; margin:0 0 4px; }
+  .topbar{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .navbtn{ display:inline-flex; align-items:center; gap:7px; text-decoration:none; white-space:nowrap;
+           background:linear-gradient(90deg,#0b5cad,#0a7d4b); color:#fff; font-size:13px; font-weight:600;
+           padding:10px 16px; border-radius:10px; border:1px solid #2a6fb5; transition:.12s; }
+  .navbtn:hover{ filter:brightness(1.12); transform:translateY(-1px); }
+  .navbtn .ar{ font-size:15px; }
   .meta{ color:var(--sub); font-size:13px; margin-bottom:24px; }
   .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
   .card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
@@ -56,7 +62,10 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🚗 캐스퍼 EV 재고전 보고서</h1>
+  <div class="topbar">
+    <h1>🚗 캐스퍼 EV 재고전 보고서</h1>
+    <a class="navbtn" href="https://technical-blog-mu.vercel.app/ev/ev_subsidy/">⚡ 전기차 지자체 보조금 리포트 <span class="ar">→</span></a>
+  </div>
   <div class="meta">
     기획전 <b>E20260666</b> · AX05 (2026 캐스퍼 일렉트릭) ·
     수집시각 <span id="ts"></span> · 스캔범위 sido (시/도별 대표 시/군/구 1곳; 페이지네이션 포함)
