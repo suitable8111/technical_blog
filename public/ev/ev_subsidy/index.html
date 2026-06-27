@@ -59,7 +59,7 @@
   .muted{color:var(--mut)}
   .note{font-size:12px;color:var(--mut);margin-top:14px;line-height:1.6}
   .hide{display:none}
-  .adfit{display:flex;justify-content:center;margin:16px 0;min-height:52px}
+  .adfit{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:16px 0;min-height:52px}
   #adfit-side{position:fixed;top:100px;right:calc((100vw - 1180px)/2 - 180px);display:none;z-index:5}
   @media(min-width:1560px){#adfit-side{display:block}}
   @media(max-width:640px){.hcol{display:none}.rk{grid-template-columns:1fr}}
@@ -263,7 +263,9 @@ fillRegions();renderRegion();
 const AD={
   pcH:{unit:'DAN-POwC5QeLUrYkxklw',w:728,h:90},   // 가로형 PC
   moH:{unit:'DAN-EqqwfYkJxM8GSIQS',w:320,h:50},   // 가로형 모바일
-  sq :{unit:'DAN-UtNyIJBZRUxCsbIJ',w:300,h:250},  // 정사각 PC/모바일
+  sq :{unit:'DAN-UtNyIJBZRUxCsbIJ',w:300,h:250},  // 정사각 1 (PC/모바일)
+  sq2:{unit:'DAN-REPLACE-SQUARE-2',w:300,h:250},          // 정사각 2 (PC 전용·placeholder)
+  sq3:{unit:'DAN-REPLACE-SQUARE-3',w:300,h:250},          // 정사각 3 (PC 전용·placeholder)
   side:{unit:'DAN-xVxe3OvWo6Tf9pXx',w:160,h:600}, // 세로형 PC
   cPC:{unit:'DAN-jjknDJxb29QWS2Wt',w:728,h:90},   // 가로 PC (캐스퍼 단위 재사용)
   cMO:{unit:'DAN-Jp2VnkvCqNs51s5k',w:320,h:100},  // 가로 모바일
@@ -280,7 +282,9 @@ function adIns(c,a){
 const isPC=window.matchMedia('(min-width:768px)').matches;
 adIns(document.getElementById('adfit-top'), isPC?AD.pcH:AD.moH);
 adIns(document.getElementById('adfit-mid'), isPC?AD.cPC:AD.cMO);
-adIns(document.getElementById('adfit-sq'), AD.sq);
+const sqEl=document.getElementById('adfit-sq');     // 정사각: PC 3개 가로배열 / 모바일 1개
+adIns(sqEl, AD.sq);
+if(isPC){ adIns(sqEl, AD.sq2); adIns(sqEl, AD.sq3); }
 if(window.matchMedia('(min-width:1560px)').matches) adIns(document.getElementById('adfit-side'), AD.side);
 const adScript=document.createElement('script');
 adScript.async=true; adScript.src='//t1.daumcdn.net/kas/static/ba.min.js';
