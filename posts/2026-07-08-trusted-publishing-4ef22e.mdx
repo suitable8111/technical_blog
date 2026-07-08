@@ -1,0 +1,84 @@
+---
+title: "Trusted Publishing의 '신뢰'는 당신이 생각하는 그 신뢰가 아닙니다"
+date: "2026-07-08"
+description: "PyPI가 2023년에 도입하고 npm, RubyGems, crates.io, NuGet 등으로 확산된 Trusted Publishing. 이름에 '신뢰(Trusted)'가 들어가다 보니 \"이 패키지는 믿고 써도 되겠구나\"라고 생각하기 쉽습니다. 하지만 이는 범주 자체"
+tags: ["Trusted Publishing", "PyPI", "공급망 보안", "OIDC", "CI/CD", "패키지 관리"]
+category: "스크랩"
+---
+
+![Trusted Publishing의 '신뢰'는 당신이 생각하는 그 신뢰가 아닙니다](/scraped/2026-07-08-trusted-publishing-4ef22e.png)
+
+## 핵심 요약
+
+PyPI가 2023년에 도입하고 npm, RubyGems, crates.io, NuGet 등으로 확산된 **Trusted Publishing**. 이름에 '신뢰(Trusted)'가 들어가다 보니 "이 패키지는 믿고 써도 되겠구나"라고 생각하기 쉽습니다. 하지만 이는 범주 자체가 어긋난 오해입니다.
+
+> Trusted Publishing의 '신뢰'는 **사람이 패키지를 믿어도 된다는 뜻이 아니라**, CI/CD 같은 외부 머신 신원과 패키지 인덱스 사이의 **업로드 인증 관계**를 가리킵니다.
+
+즉, 이것은 보안 품질 인증 마크가 아니라 **인증(authentication) 방식**일 뿐입니다.
+
+## Trusted Publishing은 어떻게 동작하나요?
+
+PyPI의 Trusted Publishing은 **OpenID Connect(OIDC) 연합** 위에서 동작합니다. 출발점이 된 문제는 두 가지였습니다.
+
+- **장기 API 토큰의 관리 어려움**: 인덱스 API 토큰은 안전하게 보관하기 어렵고, 최소 권한과 만료 기간을 설정하기 번거로워 과도한 권한으로 만들어지기 쉽습니다.
+- **CI/CD에 자격 증명을 넣어야 하는 현실**: 대부분의 사용자는 CI/CD 플랫폼에서 배포하기 위해 토큰을 만드는데, CI/CD 플랫폼은 이미 OIDC로 머신 신원을 증명하는 메커니즘을 갖고 있습니다.
+
+그래서 흐름은 이렇게 바뀝니다.
+
+1. 사용자가 패키지 인덱스에 CI/CD 머신 신원(Trusted Publisher)을 **한 번 등록**합니다.
+2. CI/CD가 배포 시점에 OIDC 신원 토큰을 제시합니다.
+3. 인덱스가 이를 검증하고 **짧고 범위가 좁은 게시 자격 증명**을 발급합니다.
+
+장기·과권한 토큰이 여기저기 떠도는 상황이 사라지니, 자격 증명 노출 리스크가 크게 줄어듭니다. 실제로 대형 오픈소스 프로젝트와 기업들은 게시 권한이 개인 메인테이너가 아닌 **소스 신원에 연결되는** 이 속성을 선호합니다.
+
+## 물론 만능은 아닙니다
+
+Trusted Publishing에도 구조적 제약은 남아 있습니다.
+
+- **데이터 모델 복잡성**: 존재하지 않는 프로젝트 문제를 해결하는 'pending publishers'는 일반 Trusted Publishing보다 사용자에게 더 혼란스럽습니다.
+- **OIDC 제공자별 처리 부담**: 제공자마다 claim set 구성이 달라 인덱스가 각각 별도로 처리해야 하고, 이 때문에 머신 신원은 IdP 간에 상호 대체가 불가능합니다. PyPI가 새 제공자를 천천히 추가하는 이유이기도 합니다.
+- **CI/CD 침해 가능성**: 워크플로가 침해되면 공격자가 게시 자격 증명이나 OIDC ID 토큰을 유출할 수 있습니다. 다만 장기 토큰과 달리 범위와 수명이 제한적이고, PyPI는 `pull_request_target`처럼 악용되기 쉬운 트리거에 대해서는 토큰 교환을 거부해 위험을 완화합니다.
+
+## 그런데 왜 '패키지 신뢰 신호'가 될 수 없을까요?
+
+이유는 단순합니다. **PyPI는 공개 인덱스이고, 누구나 Trusted Publisher를 사용할 수 있기 때문**입니다.
+
+- 악성코드 제작자도 Trusted Publishing으로 패키지를 올릴 수 있습니다.
+- 취약한 코드도 얼마든지 Trusted Publishing을 거쳐 배포될 수 있습니다.
+- 이 점에서 Trusted Publishing은 API 토큰 업로드와 **아무런 차이가 없습니다**.
+
+Trusted Publishing은 "이 업로드가 등록된 머신 신원에서 왔다"까지만 보증합니다. 그 신원을 별도로 신뢰하기 전에는 패키지의 안전성이나 품질에 대해 아무것도 말해주지 않습니다. 또한 Trusted Publishing은 필수가 아니며, 강제하는 것은 기술적으로도 사회적으로도 바람직하지 않다는 것이 PyPI의 입장입니다.
+
+## PyPI UI가 오해를 막는 방법
+
+흥미로운 점은 PyPI가 UI 차원에서 이 오해를 적극적으로 차단하고 있다는 것입니다.
+
+- 프로젝트 페이지에 Trusted Publishing 상태를 나타내는 **초록 체크 표시를 두지 않습니다**. 초록 체크는 패키지와 같은 출처임을 PyPI가 증명할 수 있는 검증된 URL에만 사용됩니다.
+- 파일별 Trusted Publishing 상태는 파일 상세의 **단순한 Yes/No 메타데이터**로만 표시되어, 신뢰 판단에 중요한 정보처럼 보이지 않도록 렌더링됩니다.
+
+'기능이 오해되지 않도록 UI를 설계한다'는 관점 자체가 배울 만한 부분입니다.
+
+## Attestations와도 구분해야 합니다
+
+PyPI의 attestations 역시 OIDC 머신 신원을 사용하지만, 마찬가지로 신뢰 신호가 아닙니다. attestation은 머신 신원 기반 서명에 가깝지만, 누구나 자신이 제어하는 머신 신원으로 서명할 수 있습니다. Trusted Publisher가 있다고 attestation이 반드시 존재하는 것도 아니고, attestation이 있다고 그 신원을 신뢰해도 된다는 뜻도 아닙니다.
+
+## 마무리: 무엇을 믿을 것인가
+
+정리하면 이렇습니다.
+
+| 질문 | Trusted Publishing이 답해주나? |
+|---|---|
+| 이 업로드가 등록된 CI/CD에서 왔는가? | ✅ 예 |
+| 이 패키지는 안전한가? | ❌ 아니오 |
+| 이 패키지는 품질이 좋은가? | ❌ 아니오 |
+| 이 배포 주체를 신뢰해도 되는가? | ❌ 별도 판단 필요 |
+
+Trusted Publishing은 공급망 보안에서 분명 의미 있는 진전이지만, **인증(authentication)과 신뢰(trust)는 다른 층위의 문제**입니다. 패키지를 도입할 때는 여전히 배포 주체가 누구인지, 그 신원을 신뢰할 근거가 있는지를 따로 판단해야 합니다. '초록 체크'가 있다고 안심하는 습관이야말로 공급망 공격이 파고드는 지점일지도 모릅니다.
+
+---
+
+*원문: [Trusted Publishing is not a package trust signal](https://blog.yossarian.net) — GeekNews 요약 기반 재구성*
+
+---
+
+원문: [https://news.hada.io/topic?id=31238](https://news.hada.io/topic?id=31238)
