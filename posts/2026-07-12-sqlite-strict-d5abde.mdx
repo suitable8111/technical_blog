@@ -1,0 +1,97 @@
+---
+title: "SQLite 쓰신다면 STRICT 테이블부터 켜세요 — 타입 오류를 미리 막는 가장 쉬운 방법"
+date: "2026-07-12"
+description: "SQLite는 기본적으로 유연한 타입 시스템을 사용합니다. 그래서 INTEGER 열에 'garbage' 같은 텍스트를 넣어도 아무 오류 없이 저장됩니다. 이런 동작은 미묘한 버그의 원인이 되곤 하는데요, 테이블 정의 끝에 STRICT 키워드 하나만 붙이면 삽입·갱신 시"
+tags: ["SQLite", "STRICT테이블", "데이터베이스", "데이터무결성", "타입검사", "DB설계"]
+category: "스크랩"
+---
+
+![SQLite 쓰신다면 STRICT 테이블부터 켜세요 — 타입 오류를 미리 막는 가장 쉬운 방법](/scraped/2026-07-12-sqlite-strict-d5abde.png)
+
+## 핵심 요약
+
+SQLite는 기본적으로 **유연한 타입 시스템**을 사용합니다. 그래서 `INTEGER` 열에 `'garbage'` 같은 텍스트를 넣어도 아무 오류 없이 저장됩니다. 이런 동작은 미묘한 버그의 원인이 되곤 하는데요, 테이블 정의 끝에 `STRICT` 키워드 하나만 붙이면 **삽입·갱신 시점에 타입을 검사**해 잘못된 데이터를 조기에 차단할 수 있습니다.
+
+- 타입 불일치를 저장 시점에 오류로 처리해 **데이터 무결성 강화**
+- `'123'`처럼 손실 없이 변환 가능한 값은 그대로 허용
+- 허용 타입은 `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, `ANY` 6가지로 제한
+- SQLite **3.37.0 이상**(2021년 11월 출시)에서만 지원
+
+## STRICT 테이블, 이렇게 만듭니다
+
+사용법은 정말 간단합니다. `CREATE TABLE` 정의 마지막에 `STRICT`를 붙이면 끝입니다.
+
+```sql
+CREATE TABLE people (name TEXT) STRICT;
+```
+
+## 무엇이 달라지나요?
+
+### 1. 삽입·갱신 시 타입 검사
+
+일반 테이블과 STRICT 테이블의 차이를 직접 비교해 보겠습니다.
+
+```sql
+-- 일반 테이블: 텍스트가 그냥 들어갑니다
+CREATE TABLE people_nonstrict (age INTEGER);
+INSERT INTO people_nonstrict (age) VALUES ('garbage'); -- 정상 처리 😱
+
+-- STRICT 테이블: 오류로 차단합니다
+CREATE TABLE people_strict (age INTEGER) STRICT;
+INSERT INTO people_strict (age) VALUES ('garbage');
+-- 오류: cannot store TEXT value in INTEGER column
+```
+
+같은 검증이 `UPDATE`에도 적용됩니다. 다만 너무 빡빡하지는 않아서, 문자열 `'123'`처럼 **손실 없이 정수로 변환 가능한 값**은 허용됩니다.
+
+### 2. 테이블 정의 단계의 타입 제한
+
+일반 테이블에서는 `DATETIME`, `JSON`, `UUID`, 심지어 `GARBAGE` 같은 존재하지 않는 타입 이름도 열 선언에 쓸 수 있습니다. 오타이거나 SQLite 타입 시스템에 대한 오해에서 비롯된 실수일 가능성이 큰데, 일반 테이블은 이를 조용히 받아들입니다.
+
+STRICT 테이블은 `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, `ANY` 외의 타입 이름을 쓰면 **생성 단계에서 바로 오류**를 냅니다. 타입 생략도 불가능해서 모든 열에 타입을 명시해야 합니다.
+
+### 3. 유연함이 필요하다면 `ANY`
+
+여러 타입을 한 열에 담아야 한다면 `ANY`를 지정하면 됩니다. 엄격한 검증과 유연한 저장을 한 테이블 안에서 함께 쓸 수 있는 셈이죠.
+
+```sql
+CREATE TABLE tbl (value ANY) STRICT;
+INSERT INTO tbl (value) VALUES (123);      -- OK
+INSERT INTO tbl (value) VALUES ('text');   -- OK
+INSERT INTO tbl (value) VALUES (12.34);    -- OK
+```
+
+## 기존 테이블은 어떻게 바꾸나요?
+
+아쉽게도 `ALTER TABLE`로 기존 테이블을 곧바로 STRICT로 전환하는 방법은 없습니다. 새 테이블을 만들고 데이터를 복사하는 절차가 필요합니다.
+
+```sql
+CREATE TABLE new_people (name TEXT) STRICT;
+INSERT INTO new_people SELECT * FROM people;
+DROP TABLE people;
+ALTER TABLE new_people RENAME TO people;
+```
+
+기존 데이터에 타입이 잘못된 값이 섞여 있으면 복사 과정에서 오류가 날 수 있으니, 마이그레이션 전에 데이터를 정리하거나 `CAST`로 형 변환해 두는 것이 좋습니다. 참고로 sqlite-utils 4.1부터는 `sqlite-utils transform data.db mytable --strict` 명령으로 이 과정을 자동화할 수 있습니다.
+
+## 주의할 점
+
+- **버전 호환성**: STRICT 테이블이 포함된 데이터베이스는 SQLite 3.36.0 이하 구버전에서 아예 열리지 않습니다. 배포 환경의 SQLite 버전을 먼저 확인하세요.
+- **성능**: 이론적으로는 타입 검사 비용이 추가되지만, 수백만 행 삽입 실험에서 뚜렷한 성능·파일 크기 차이는 확인되지 않았습니다.
+- **일부만 STRICT 적용**: 새 테이블에만 적용하는 정책도 가능하지만, 테이블마다 검증 강도가 달라져 오히려 동작 예측이 어려워질 수 있습니다.
+
+## 유연한 타입이 더 나은 경우도 있습니다
+
+SQLite 개발진이 정리한, 비엄격 테이블이 합리적인 사례도 있습니다.
+
+- 여러 타입을 그대로 담는 순수 **키-값 저장소**
+- 타입이 제각각인 기타 속성 보관용 열
+- 지저분한 CSV를 유효하지 않은 값까지 잃지 않고 그대로 가져와야 하는 경우
+
+## 마무리
+
+STRICT 테이블이 모든 데이터 문제를 해결해 주지는 않습니다. 하지만 테이블 정의에 키워드 하나만 추가하면 되는 간단한 방법으로 타입 관련 실수를 크게 줄일 수 있습니다. Hacker News 커뮤니티에서도 "STRICT가 기본값이었으면 좋겠다"는 의견이 다수였을 만큼, 일반적인 용도라면 **새 테이블은 STRICT로 시작하는 것**을 추천합니다.
+
+---
+
+원문: [https://news.hada.io/topic?id=31344](https://news.hada.io/topic?id=31344)
