@@ -1,0 +1,110 @@
+---
+title: "Xcode를 한 번도 안 열고 Mac·iOS 앱을 빌드하고 배포하는 방법"
+date: "2026-07-14"
+description: "Xcode를 설치는 하되 실행하지 않고, 터미널만으로 Mac과 iOS 앱의 빌드·서명·공증·배포를 자동화할 수 있습니다. 초기 Apple 계정과 인증서 설정만 GUI로 마치면, 이후에는 xcodebuild, notarytool, stapler, devicectl 같은 "
+tags: ["Xcode", "iOS 개발", "macOS 배포", "빌드 자동화", "공증", "Claude Code"]
+category: "스크랩"
+---
+
+![Xcode를 한 번도 안 열고 Mac·iOS 앱을 빌드하고 배포하는 방법](/scraped/2026-07-14-xcode-macios-96c98d.png)
+
+## 핵심 요약
+
+Xcode를 설치는 하되 **실행하지 않고**, 터미널만으로 Mac과 iOS 앱의 빌드·서명·공증·배포를 자동화할 수 있습니다. 초기 Apple 계정과 인증서 설정만 GUI로 마치면, 이후에는 `xcodebuild`, `notarytool`, `stapler`, `devicectl` 같은 Xcode 내장 CLI 도구가 전 과정을 처리합니다.
+
+- **XcodeGen**으로 `project.yml`에서 `.xcodeproj`를 매번 재생성해 프로젝트 설정을 재현 가능하게 유지
+- **`scripts/release.sh`** 하나로 아카이브 → Developer ID 서명 → 공증 → 티켓 스테이플링 → Gatekeeper 검증 → `/Applications` 설치까지 실행
+- 빠른 확인용으로는 `CODE_SIGNING_ALLOWED=NO` 빌드를 사용하되, 이 빌드는 배포용으로 쓸 수 없음
+- 명령과 배포 규칙을 `CLAUDE.md`/`AGENTS.md`에 기록하면 Claude Code 같은 코딩 에이전트가 워크플로 전체를 반복 실행 가능
+
+## GUI 없이 어디까지 가능할까?
+
+Xcode 자체는 설치해야 하지만, 핵심 도구인 `xcodebuild`, `notarytool`, `stapler`, `devicectl`은 모두 Xcode.app 내부의 독립 실행 가능한 셸 도구입니다. Apple ID 로그인, Developer ID 인증서 생성, 공증 암호 저장 같은 **최초 설정에만** GUI나 대화형 터미널이 필요하고, 그 이후에는 프로젝트 생성부터 실제 iPhone 배포까지 마우스 없이 처리할 수 있습니다.
+
+한 가지 주의할 점은 도구 체인 선택입니다. `xcode-select -p`의 결과가 `/Applications/Xcode.app/Contents/Developer`인지 먼저 확인하세요. 독립형 Command Line Tools에는 `clang`과 `git`만 있고, iOS SDK나 `notarytool`, `devicectl`은 들어 있지 않습니다.
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept
+sudo xcodebuild -runFirstLaunch
+```
+
+## XcodeGen으로 프로젝트를 코드로 관리하기
+
+`.xcodeproj`는 사실 폴더이고, Xcode가 내부 파일을 계속 바꾸기 때문에 Git에서 충돌과 불필요한 변경의 원인이 됩니다. XcodeGen을 쓰면 프로젝트 설정을 YAML(`project.yml`)로 관리하고, 빌드할 때마다 프로젝트 파일을 새로 생성할 수 있습니다.
+
+```bash
+brew install xcodegen
+xcodegen generate
+```
+
+`project.yml`만 커밋하고 생성된 `.xcodeproj`는 `.gitignore`에 넣는 것이 핵심입니다.
+
+## 인증서와 공증 자격 증명 설정
+
+배포와 공증에는 유료 Apple Developer 계정이 필요합니다. 인증서는 용도가 다른 두 가지를 구분해야 합니다.
+
+- **Apple Development**: 내 기기에서 실행하거나 iPhone에 전송해 로컬 디버깅할 때
+- **Developer ID Application**: 다른 사람의 Mac에서 Gatekeeper를 통과하는 공증된 `.app`을 배포할 때
+
+Developer ID 인증서를 만들면 개인 키가 로그인 키체인에 설치되는데, 이 키는 **다시 다운로드할 수 없으므로** 반드시 키체인을 백업해 두세요.
+
+공증은 `notarytool`의 키체인 프로필로 인증합니다.
+
+```bash
+xcrun notarytool store-credentials App-Name \
+  --apple-id "you@example.com" \
+  --team-id YOUR-TEAM-ID
+```
+
+여기서 쓰는 앱 전용 암호(App-Specific Password)는 Apple ID 암호와 다르며, Apple ID 암호를 바꾸면 **별도 경고 없이 만료**될 수 있습니다. 공증 중 `401 invalid credentials`가 뜨면 설정 전체를 의심하기 전에 앱 전용 암호 만료부터 확인하세요.
+
+팀 ID 같은 프로젝트별 값은 `.gitignore`에 등록한 `Local.xcconfig`에 두면, 비밀 정보가 Git에 남지 않습니다.
+
+## release.sh 하나로 끝내는 Mac 배포
+
+`./scripts/release.sh` 한 번이면 다음 파이프라인이 순서대로 실행됩니다.
+
+1. `xcodegen`과 공증 프로필 사전 확인
+2. 프로젝트 재생성 후 `xcodebuild archive`로 Release 아카이브
+3. `-exportArchive`로 Developer ID 서명 앱 내보내기
+4. ZIP으로 묶어 `notarytool submit --wait`로 Apple에 제출
+5. `stapler staple`로 공증 티켓 부착
+6. `spctl`로 Gatekeeper 검증
+7. `/Applications`에 설치 후 재검증
+
+스크립트에 `set -euo pipefail`을 걸어 두면 어느 단계가 실패해도 즉시 중단되어, 불완전한 배포가 성공으로 처리되는 일을 막을 수 있습니다. 복사된 앱까지 다시 검사하는 것도 놓치기 쉬운 포인트입니다.
+
+## 빠른 빌드와 배포 빌드는 다르다
+
+일상적인 컴파일 확인과 테스트에는 서명을 끈 빌드가 훨씬 빠릅니다.
+
+```bash
+swift test
+xcodebuild -project MyApp.xcodeproj -scheme MyApp-macOS \
+  -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
+```
+
+다만 이 임시 서명 빌드는 **Gatekeeper를 통과하지 못하고**, 팀 ID가 결합되지 않아 iCloud KVS나 App Group 권한도 동작하지 않습니다. CI와 빠른 로컬 확인에는 무서명 빌드, 실제 배포에는 `release.sh` — 이 구분을 문서에 명시해 두는 것이 중요합니다.
+
+## 실제 iPhone에도 헤드리스 배포
+
+iOS 기기 배포는 Mac과 달리 공증 단계가 없습니다. Apple Development 인증서로 아카이브한 뒤 `devicectl`로 연결된 기기에 설치하면 끝입니다.
+
+```bash
+xcodebuild -project MyApp.xcodeproj -scheme MyApp-iOS \
+  -destination 'generic/platform=iOS' \
+  -allowProvisioningUpdates archive -archivePath build/MyApp.xcarchive
+```
+
+## 에이전트에게 배포를 맡기기
+
+이 워크플로의 진짜 매력은 자동화의 다음 단계입니다. 빌드·테스트·배포 명령과 규칙을 `CLAUDE.md`나 `AGENTS.md`에 기록해 두면, Claude Code 같은 코딩 에이전트가 세션마다 별도 지시 없이 전체 워크플로를 반복 실행할 수 있습니다. 스킴 이름, 팀 ID, 공증 프로필 이름 같은 프로젝트별 값만 제공하면 되고, 한 앱에서 만든 설정을 다른 저장소에 복제하도록 지시할 수도 있습니다.
+
+## 마무리
+
+초기 설정의 허들만 넘으면, Mac·iOS 앱 배포는 더 이상 Xcode GUI에서 버튼을 누르는 작업이 아니라 스크립트 한 줄로 재현되는 파이프라인이 됩니다. 인증서 백업과 앱 전용 암호 만료 같은 함정만 조심하면, 사람이든 에이전트든 같은 명령으로 안정적인 배포를 반복할 수 있습니다.
+
+---
+
+원문: [https://news.hada.io/topic?id=31431](https://news.hada.io/topic?id=31431)
