@@ -1,0 +1,85 @@
+---
+title: "MCP가 드디어 '무상태(Stateless)'로 바뀝니다 - 출시 이후 최대 규모 스펙 변경 총정리"
+date: "2026-08-14"
+description: "2026년 7월 28일, MCP(Model Context Protocol)가 출시 이후 가장 큰 규모의 스펙 변경을 단행했습니다. 핵심은 단 하나, \"stateful한 양방향 연결 구조\"에서 \"stateless한 request/response 구조\"로의 전환입니다. 기"
+tags: ["MCP", "Model Context Protocol", "Stateless", "AI 에이전트", "API 아키텍처", "LLM 프로토콜"]
+category: "스크랩"
+---
+
+![MCP가 드디어 '무상태(Stateless)'로 바뀝니다 - 출시 이후 최대 규모 스펙 변경 총정리](/scraped/2026-08-14-mcp-stateless-f5f7bc.png)
+
+## 한눈에 요약
+
+2026년 7월 28일, MCP(Model Context Protocol)가 출시 이후 가장 큰 규모의 스펙 변경을 단행했습니다. 핵심은 단 하나, **"stateful한 양방향 연결 구조"에서 "stateless한 request/response 구조"로의 전환**입니다. 기존에 연결 세션 안에 숨어 있던 상태(state)를 요청 메타데이터나 명시적인 handle로 끌어올리고, 복잡한 기능들은 Extensions로 분리했습니다. 덕분에 remote MCP 서버를 일반적인 HTTP 서비스처럼 load balancer 뒤에 여러 대 두고 수평 확장할 수 있게 됐습니다.
+
+기존 `2025-11-25` 스펙에서 세션이나 기존 Tasks API에 의존하고 있던 구현이라면, 이번 업데이트는 **마이그레이션이 필요한 breaking 변경**이라는 점을 꼭 기억해 두세요.
+
+---
+
+## 왜 Stateless로 바꿨을까?
+
+기존 MCP는 클라이언트가 `initialize`를 호출해 protocol version, capabilities, client 정보를 주고받고, 서버가 `Mcp-Session-Id`를 발급하는 방식이었어요. 이후 모든 요청은 이 세션 ID를 사용했기 때문에, 서버를 여러 인스턴스로 확장하려면 sticky session이나 shared session store 같은 번거로운 인프라가 추가로 필요했습니다.
+
+새 스펙에서는:
+
+- `initialize`/`initialized` handshake와 `Mcp-Session-Id`가 **모두 제거**됨
+- protocol version, client identity, capabilities 등 필요한 정보가 **요청 자체에 포함**되어 어떤 서버 인스턴스가 받아도 독립적으로 처리 가능
+- 사전에 서버 capabilities를 확인하고 싶다면 새로 생긴 `server/discover` RPC를 선택적으로 사용 가능
+
+결과적으로 remote MCP 서버를 **round-robin load balancer 뒤에 두고 그냥 일반 HTTP 서비스처럼 운영**할 수 있게 된 겁니다.
+
+> 그렇다고 서버가 상태를 아예 못 갖는 건 아니에요. 브라우저 세션이나 장바구니처럼 여러 tool call 사이에서 상태가 필요하면, `browser_id`, `basket_id` 같은 **명시적인 handle을 반환하고 이후 tool argument로 다시 전달**하는 방식을 권장합니다. 전에는 숨겨져 있던 상태가 이제 model에게도 보이게 되는 셈이죠.
+
+---
+
+## 서버가 되묻는 방식도 바뀌었다: MRTR
+
+Stateless 구조에서는 서버가 연결을 계속 열어둔 채 client에게 역질문을 던지는 기존 방식이 통하지 않습니다. 이를 대체하는 게 **Multi Round-Trip Requests(MRTR)** 입니다.
+
+예를 들어 tool 실행 중 "파일 3개를 삭제할까요?"처럼 사용자 확인이 필요하면:
+
+1. 서버는 연결을 붙잡고 있는 대신 `input_required` 결과를 반환
+2. Client는 사용자 입력을 받은 뒤 `inputResponses`와 서버가 전달했던 `requestState`를 포함해 **원래 요청을 다시 호출**
+3. 필요한 상태가 요청 안에 들어있으므로 최초 요청과 재요청을 서로 다른 서버 인스턴스가 처리해도 무방
+
+단, 서버가 아무 사용자 요청 없이 갑자기 elicitation을 던지는 건 허용되지 않습니다. 반드시 현재 처리 중인 client request에서 시작돼야 해요.
+
+---
+
+## Routing / Caching / Tracing도 함께 개선
+
+- **Header 추가**: `Mcp-Method`, `Mcp-Name` 헤더가 생겨서 gateway가 JSON body를 파싱하지 않고도 `tools/call` 같은 요청을 header만 보고 routing·authorization·rate limiting에 활용 가능 (header와 실제 body가 다르면 서버가 요청을 거부해 spoofing 방지)
+- **Cache metadata**: `tools/list`, `resources/list`, `resources/read` 결과에 `ttlMs`, `cacheScope`가 추가되어 client가 캐시 유효기간을 알 수 있음. Tool 목록도 순서를 deterministic하게 유지하도록 권장돼 LLM prompt cache 깨짐 문제도 줄어듦
+- **Trace Context**: `_meta`를 통한 W3C Trace Context 전달이 표준화되어 host → client → server → downstream까지 하나의 distributed trace로 연결 가능
+
+---
+
+## Extensions가 정식 1급 시민으로
+
+이제 각 extension은 reverse-DNS 형식 ID, 독립적인 버전, repository, maintainer를 가질 수 있는 정식 framework를 갖췄습니다. Client와 server는 capabilities의 `extensions` map으로 서로 지원 여부를 확인하죠. 새 기능을 core release에 바로 넣는 대신 **extension으로 먼저 실험**할 수 있게 된 게 포인트입니다.
+
+대표적인 공식 extension 두 가지:
+
+- **MCP Apps**: 텍스트/JSON 결과 대신 interactive HTML UI(대시보드, 차트, 폼 등)를 sandboxed iframe에서 렌더링. UI 동작도 기존 JSON-RPC와 동일한 audit·consent 흐름을 따름
+- **Tasks**: 기존 experimental core 기능이던 Tasks가 `io.modelcontextprotocol/tasks` extension으로 독립. 오래 걸리는 작업은 즉시 결과 대신 task handle을 반환하고, `tasks/get`/`tasks/update`/`tasks/cancel`로 상태를 관리. 세션이 사라지면서 안전하게 scope하기 어려워진 `tasks/list`는 제거됨
+
+---
+
+## 그 외 주요 변경사항
+
+- **Authorization 강화**: `iss` 검증으로 mix-up 공격 방지, `application_type` 명시로 desktop/CLI client의 localhost redirect 오처리 문제 해소, client credential을 발급 issuer에 bind. 최종적으로는 Dynamic Client Registration(DCR) 자체도 deprecated되고 **Client ID Metadata Documents(CIMD)** 로 이동
+- **Deprecated 처리**: Roots(→ tool parameter/resource URI 권장), Sampling(→ LLM provider API 직접 통합 권장), Logging(→ stderr/OpenTelemetry 권장) — MCP core가 범용 기능을 계속 떠안기보다 기존 표준을 활용하는 방향
+- **JSON Schema 2020-12 전면 지원**: `oneOf`/`anyOf`/`allOf`/conditional/`$ref`/`$defs` 사용 가능. `outputSchema`와 `structuredContent`는 object 제한 없이 임의 JSON 값 반환 가능 (단, 외부 `$ref` 자동 fetch는 SSRF 위험으로 금지)
+- **공식 Deprecation Policy 도입**: 기능 lifecycle을 `Active → Deprecated → Removed`로 공식화하고, deprecated 상태는 **최소 12개월** 유지 + 제거 시 별도 SEP 필요
+
+---
+
+## 그래서 지금 당장 Claude나 Codex에 적용되나요?
+
+아니요. 스펙이 새로 나왔다고 자동으로 적용되는 게 아니라, Claude Code나 Codex CLI 같은 **MCP client가 새 프로토콜을 직접 구현**해야 반영됩니다. 당장 뭔가 달라지는 건 아니지만, MCP 생태계 전반이 일반적인 웹 인프라(load balancer, API gateway, cache, OpenTelemetry 등)와 훨씬 자연스럽게 맞물리는 방향으로 가고 있다는 점은 눈여겨볼 만합니다.
+
+기존 세션 기반 구현이나 experimental Tasks API에 의존하는 MCP 서버를 운영 중이라면, 이번 변경은 **마이그레이션이 필요한 breaking release**라는 점, 꼭 체크하세요!
+
+---
+
+원문: [https://news.hada.io/topic?id=32492](https://news.hada.io/topic?id=32492)
