@@ -1,0 +1,176 @@
+---
+title: "괄호 안에 언어 하나를 통째로 담다: Racket 친절한 입문기"
+date: "2026-08-23"
+description: "Racket은 Lisp와 Scheme의 계보를 이어받은 언어로, 코드와 데이터를 똑같은 구조로 다루는 특성(동형성) 덕분에 프로그램을 짜는 것을 넘어 나만의 문법과 언어까지 직접 만들 수 있는 독특한 도구입니다. 오늘은 Racket이 어디서 왔고, 실제 코드는 어떻게 "
+tags: ["Racket", "Lisp", "Scheme", "함수형프로그래밍", "매크로", "프로그래밍언어"]
+category: "스크랩"
+---
+
+![괄호 안에 언어 하나를 통째로 담다: Racket 친절한 입문기](/scraped/2026-08-23-racket-4016ce.png)
+
+## 한 줄 요약
+
+Racket은 Lisp와 Scheme의 계보를 이어받은 언어로, **코드와 데이터를 똑같은 구조로 다루는 특성(동형성)** 덕분에 프로그램을 짜는 것을 넘어 나만의 문법과 언어까지 직접 만들 수 있는 독특한 도구입니다. 오늘은 Racket이 어디서 왔고, 실제 코드는 어떻게 생겼으며, 왜 아직도 많은 개발자와 연구자들이 이 언어에 매력을 느끼는지 차근차근 살펴보겠습니다.
+
+## Lisp에서 Racket까지, 60년이 넘는 계보
+
+Lisp는 1958년 MIT의 John McCarthy가 만든 언어로, 1957년 등장한 Fortran 다음으로 오래된 현역 고급 언어입니다. 놀랍게도 오늘날 우리가 당연하게 쓰는 여러 개념이 Lisp에서 처음 나왔습니다.
+
+- **가비지 컬렉션** – Lisp를 위해 발명됨
+- **일급 함수** – 함수를 값처럼 인수로 전달
+- **REPL** – Python, Node, Julia에서도 익숙한 대화형 실행 환경
+- **값을 반환하는 조건식**
+- **동형성** – 코드 자체가 언어의 자료 구조
+
+1970~1980년대에는 Symbolics, LMI 같은 회사가 아예 Lisp 전용 하드웨어인 'Lisp Machine'을 만들 정도로, Lisp는 오랫동안 인공지능 연구의 중심 언어였습니다.
+
+이후 1975년 Gerald Sussman과 Guy Steele이 더 간결하고 수학적인 방언인 **Scheme**을 만들었고, 그 유명한 교재 *Structure and Interpretation of Computer Programs(SICP)*도 Scheme으로 쓰였습니다. 1995년 Matthias Felleisen의 연구팀이 교육·연구 목적의 PLT Scheme을 만들었고, 2010년 이름을 바꾼 것이 바로 지금의 **Racket**입니다. Racket은 단순히 Scheme의 후예를 넘어, 문제에 맞는 전용 언어를 직접 설계할 수 있는 '언어 지향 프로그래밍'을 지원하도록 발전했습니다.
+
+## 아직도 살아있는 Lisp 생태계
+
+"Lisp는 옛날 언어 아닌가?"라고 생각할 수 있지만, 실제로는 다양한 분야에서 현역으로 쓰이고 있습니다.
+
+- **Clojure**: 라틴아메리카 최대 디지털 은행 Nubank를 포함해 은행·항공사·스타트업 프로덕션 환경에서 사용
+- **Common Lisp(SBCL)**: 전문가 시스템, 과학 계산, 비행 계획 수립
+- **ITA Software 기술**: Google이 인수해 Google Flights를 구동
+- **Emacs Lisp**: Emacs 에디터 자체가 Lisp 인터프리터
+- **Guile/Guix**: Linux 배포판 전체를 Scheme으로 설정
+- **Racket**: 연례 컨퍼런스 RacketCon과 함께 형식 검증(Rosette), 출판·타이포그래피(Pollen), 프로그래밍 언어 연구·교육 등 폭넓게 활용
+
+새로운 Lisp 계열도 계속 태어나고 있습니다. Lua로 컴파일되는 **Fennel**은 게임 개발에서, **Janet**과 Python 위에서 동작하는 **Hy**도 각자의 자리를 찾고 있습니다. 심지어 애니메이션 *The Amazing Digital Circus* 8화에도 `Caine-core.lisp` 파일이 등장해, 극중 AI 캐릭터가 Lisp로 프로그래밍됐다는 설정을 보여주는 재미있는 이스터에그도 있습니다.
+
+## 설치하고 바로 시작하기
+
+Racket 공식 사이트에서 Linux·macOS·Windows용 설치 프로그램을 받을 수 있습니다. 함께 설치되는 **DrRacket** 에디터는 위쪽에 프로그램을 작성하는 정의 영역, 아래쪽에 바로 실험해볼 수 있는 REPL로 구성되어 있어 입문자에게 특히 친절합니다.
+
+정의 영역의 첫 줄에는 항상 사용할 언어를 명시합니다.
+
+```racket
+#lang racket
+```
+
+터미널을 선호한다면 `racket` 명령으로 REPL을 열고, `raco` 명령으로 패키지 관리와 도구 실행을 처리하면 됩니다.
+
+## 모든 코드는 '표현식'이다
+
+Racket(그리고 Lisp 전반)의 가장 큰 특징은 **모든 코드가 예외 없이 `(연산자 인수1 인수2 ...)` 형태**라는 점입니다. 별도의 연산자 우선순위 규칙이 없고, 괄호가 프로그램 구조 전체를 나타냅니다.
+
+```racket
+(+ 1 2)                          ; => 3
+(* 3 (+ 2 2))                    ; => 12
+(string-append "hello " "world") ; => "hello world"
+```
+
+덧셈이든 조건 분기(`if`)든 이름 정의(`define`)든 전부 같은 형태로 작성하기 때문에, 기능마다 다른 문법을 외울 필요가 없습니다.
+
+## 정의와 함수
+
+`define`에 이름과 값을 주면 상수가 되고, `(이름 인수...)` 형태를 주면 함수가 됩니다.
+
+```racket
+(define pi-approx 3.14159)
+(define (circle-area r)
+  (* pi-approx r r))
+
+(circle-area 2) ; => 12.56636
+```
+
+주석은 `;`로 시작하며, 이름 없는 함수는 `lambda`로 만들어 바로 호출할 수도 있습니다.
+
+```racket
+(lambda (x) (* x x))
+((lambda (x) (* x x)) 5) ; => 25
+```
+
+## 리스트와 고차 함수: for 루프가 필요 없는 순간
+
+Lisp이라는 이름 자체가 'List Processing'에서 왔을 만큼, 리스트는 Racket의 기본 자료 구조입니다.
+
+```racket
+(list 1 2 3)      ; => '(1 2 3)
+(first '(1 2 3))  ; => 1
+(rest '(1 2 3))   ; => '(2 3)
+(cons 0 '(1 2 3)) ; => '(0 1 2 3)
+```
+
+작은따옴표(`'`)는 표현식을 실행하지 말고 데이터로 취급하라는 표시입니다. 이 덕분에 `map`, `filter`, `foldl` 같은 고차 함수를 자연스럽게 활용할 수 있습니다.
+
+```racket
+(map (lambda (x) (* x x)) '(1 2 3 4 5)) ; => '(1 4 9 16 25)
+(filter even? '(1 2 3 4 5 6))           ; => '(2 4 6)
+(foldl + 0 '(1 2 3 4 5))                ; => 15
+```
+
+`map`은 변환하고, `filter`는 골라내고, `foldl`은 누적합니다. 이 세 가지만 익혀도 웬만한 리스트 문제는 `for` 루프 없이 풀 수 있습니다.
+
+## 반복 대신 재귀로 생각하기
+
+Racket에서 반복은 '몇 번 돌 것인가'보다 '기저 조건이 무엇이고, 그 조건에 어떻게 다가가는가'를 중심으로 짭니다.
+
+```racket
+(define (factorial n)
+  (if (= n 0)
+      1
+      (* n (factorial (- n 1)))))
+
+(factorial 5) ; => 120
+```
+
+내장된 `2htdp/image` 그래픽 라이브러리와 재귀를 결합하면 시에르핀스키 삼각형처럼 시각적으로도 재미있는 결과를 얻을 수 있습니다.
+
+```racket
+#lang racket
+(require 2htdp/image)
+
+(define (sierpinski level)
+  (if (= level 0)
+      (triangle 8 "solid" "purple")
+      (let ([t (sierpinski (- level 1))])
+        (above t (beside t t)))))
+
+(sierpinski 6)
+```
+
+## 코드가 데이터가 되고, 데이터가 코드가 되는 마법
+
+Racket의 가장 흥미로운 특징은 **동형성(homoiconicity)**입니다. 작은따옴표를 붙이면 `(+ 1 2)`는 실행되지 않고 `+`, `1`, `2`로 이루어진 하나의 리스트 데이터가 됩니다.
+
+```racket
+'(+ 1 2)        ; => 리스트 (+ 1 2)
+(first '(+ 1 2)) ; => 기호 +
+(eval '(+ 1 2))  ; => 3
+```
+
+프로그램 자체가 리스트이고, 리스트는 프로그램 안에서 자유롭게 만들어낼 수 있으므로 **프로그램으로 다른 프로그램을 만드는 것**이 가능해집니다. 이것이 바로 Lisp 매크로가 C의 텍스트 치환 매크로와 근본적으로 다른 이유입니다. C 매크로는 텍스트를 다루지만, Lisp 매크로는 실행되기 전에 코드를 코드로 받아 코드를 반환합니다.
+
+## 언어 문법 자체를 확장하기
+
+`define-syntax-rule`을 쓰면 Racket에 원래 없는 `while` 구문도 직접 만들 수 있습니다.
+
+```racket
+(define-syntax-rule (while condition body ...)
+  (let loop ()
+    (when condition
+      body ...
+      (loop))))
+
+(define counter 0)
+(while (< counter 5)
+  (displayln counter)
+  (set! counter (+ counter 1)))
+```
+
+이 매크로는 `while`이 받은 조건과 본문을 `let` 기반의 재귀 루프로 바꿔주는 역할을 합니다. 즉, 라이브러리를 추가하는 수준을 넘어 **언어의 문법 자체를 확장**할 수 있는 것이죠. Alan Kay가 Lisp를 두고 "소프트웨어의 맥스웰 방정식"이라 부른 것도, 이렇게 작은 핵심 규칙에서 나머지 모든 것을 유도해낼 수 있기 때문입니다.
+
+## 더 공부하고 싶다면
+
+- **How to Design Programs** – Racket을 중심 언어로 쓰는 무료 온라인 교재
+- **The Racket Guide** – Racket 공식 안내서
+- **Beautiful Racket** – 나만의 언어를 만드는 방법을 다루는 자료
+- **SICP** – Scheme으로 프로그램의 구조와 해석을 배우는 고전 명저
+
+괄호가 낯설게 느껴질 수 있지만, 익숙해지고 나면 '코드로 언어를 만든다'는 경험 자체가 다른 언어에서는 쉽게 얻기 힘든 재미를 줍니다. 주말에 가볍게 DrRacket을 켜보는 건 어떨까요?
+
+---
+
+원문: [https://news.hada.io/topic?id=32795](https://news.hada.io/topic?id=32795)
