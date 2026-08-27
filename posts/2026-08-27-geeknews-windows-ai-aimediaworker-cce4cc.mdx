@@ -1,0 +1,49 @@
+---
+title: "GeekNews에서 만난 프로젝트: Windows용 AI 자동자막 미디어 플레이어 'AIMediaWorker'"
+date: "2026-08-27"
+description: "영상을 재생하면서 자막을 자동 생성하고, 번역까지 실시간으로 처리하는 Windows 미디어 플레이어가 GeekNews의 \"Show GN\" 코너에 소개됐습니다. 개발자 kirinonakar님이 만든 오픈소스 프로젝트 AIMediaWorker인데요, 영상 감상용 플레이어와"
+tags: ["AIMediaWorker", "Qwen3-ASR", "AI자막", "미디어플레이어", "WinUI3", "오픈소스"]
+category: "스크랩"
+---
+
+![GeekNews에서 만난 프로젝트: Windows용 AI 자동자막 미디어 플레이어 'AIMediaWorker'](/scraped/2026-08-27-geeknews-windows-ai-aimediaworker-cce4cc.png)
+
+## 한눈에 보기
+
+영상을 재생하면서 **자막을 자동 생성하고, 번역까지 실시간으로 처리**하는 Windows 미디어 플레이어가 GeekNews의 "Show GN" 코너에 소개됐습니다. 개발자 kirinonakar님이 만든 오픈소스 프로젝트 **AIMediaWorker**인데요, 영상 감상용 플레이어와 AI 자막 도구를 따로 쓰던 분들이라면 눈여겨볼 만한 물건입니다.
+
+## 어떤 기술로 만들었나요
+
+- **UI/런타임**: WinUI 3 + .NET 10
+- **영상 재생**: libmpv
+- **음성 인식(ASR)**: Qwen3-ASR 1.7B + CrispASR
+- **자막 정렬**: Qwen3 Forced Aligner
+
+특히 눈에 띄는 부분은 Qwen3-ASR과 CrispASR을 **Python 프로세스를 거치지 않고 C#에서 네이티브 런타임으로 직접 호출**하도록 구성했다는 점입니다. 보통 이런 AI 음성 인식 파이프라인은 Python 백엔드를 별도로 띄워야 하는 경우가 많은데, 이 프로젝트는 그 오버헤드를 없애고 앱 안에서 바로 처리하도록 만든 셈이죠.
+
+## 주요 기능 정리
+
+1. **다양한 소스 재생**: 로컬 영상은 물론 HTTP/HTTPS, WebDAV 스트림도 재생 가능
+2. **오프라인 실시간 자동 자막**: 인터넷 연결 없이도 Qwen3-ASR로 자막 생성
+3. **자막 번역·요약**: 로컬 LLM뿐 아니라 Gemini, Ollama cloud, OpenCode 등 다양한 API 연동 지원
+4. **스트리밍 번역 표시**: 번역 결과를 기다리지 않고 실시간으로 화면에 흘려서 보여줌
+5. **화질 개선**: NVIDIA RTX Video Super Resolution 지원
+6. **라이브 캡처 자막**: 카메라·마이크, 윈도우 시스템 사운드에 대해서도 실시간 자막/번역 가능
+7. **다국어 UI**: 한국어, 영어, 일본어 지원
+
+또한 ASR 모델과 필요한 런타임은 설정 화면에서 **자동으로 설치**할 수 있어, 별도로 파이썬 환경을 구축하거나 모델 파일을 수동으로 내려받을 필요가 없습니다.
+
+## 아직은 개발 중
+
+개발자 스스로도 "아직 부족한 부분이 많다"고 밝히고 있는 초기 단계 프로젝트입니다. 다만 목표가 명확합니다 — **영상 재생, AI 자막 생성, 자막 편집, 실시간 번역을 하나의 앱**에서 처리하는 것. 외국어 영상이나 스트리밍을 볼 때마다 별도 자막 도구나 번역기를 켜야 했던 번거로움을 줄여줄 수 있는 방향성이라, 앞으로의 업데이트가 기대되는 프로젝트입니다.
+
+관심 있으신 분들은 GitHub 레포지토리에서 소스코드를 확인하고 직접 다운로드해 볼 수 있습니다. 개발자가 피드백과 개선 아이디어를 환영한다고 하니, 사용해보고 의견을 남겨보는 것도 좋겠습니다.
+
+- GitHub 저장소: https://github.com/kirinonakar/AIMediaWorker
+- 개발자 홈페이지: https://kirinonakar.github.io/
+
+> 💡 **참고**: RTX Video Super Resolution을 지원한다는 점에서 짐작할 수 있듯, 원활한 사용을 위해서는 NVIDIA GPU 환경이 유리할 것으로 보입니다. 로컬 LLM으로 번역·요약을 돌리려면 어느 정도의 하드웨어 사양도 필요할 수 있으니, 설치 전 시스템 요구사항을 확인해보시길 권합니다.
+
+---
+
+원문: [https://news.hada.io/topic?id=32937](https://news.hada.io/topic?id=32937)
