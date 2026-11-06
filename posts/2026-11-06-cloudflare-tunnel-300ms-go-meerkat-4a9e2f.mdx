@@ -1,0 +1,153 @@
+---
+title: "Cloudflare Tunnel이 해외를 돌아 300ms씩 느려진다면? 국내에 직접 띄우는 오픈소스 Go 터널 'Meerkat'"
+date: "2026-11-06"
+description: "국내 서버에 서비스를 올렸고 접속자도 국내에 있는데, Cloudflare Tunnel을 거치면 LA나 홍콩을 한 바퀴 돌아오느라 지연이 300ms 넘게 늘어나는 경우가 있습니다. Meerkat은 이 문제를 겪은 개발자가 직접 만든 오픈소스 터널입니다. 바깥에서 들어오는"
+tags: ["Cloudflare Tunnel 대안", "Meerkat", "셀프호스팅", "리버스 터널", "Go 오픈소스", "네트워크 지연"]
+category: "스크랩"
+---
+
+![Cloudflare Tunnel이 해외를 돌아 300ms씩 느려진다면? 국내에 직접 띄우는 오픈소스 Go 터널 'Meerkat'](/scraped/2026-11-06-cloudflare-tunnel-300ms-go-meerkat-4a9e2f.png)
+
+## 한눈에 보기
+
+국내 서버에 서비스를 올렸고 접속자도 국내에 있는데, **Cloudflare Tunnel을 거치면 LA나 홍콩을 한 바퀴 돌아오느라** 지연이 300ms 넘게 늘어나는 경우가 있습니다. **Meerkat**은 이 문제를 겪은 개발자가 직접 만든 오픈소스 터널입니다. 바깥에서 들어오는 공개 진입점(Outlet)을 국내 서버에 직접 둘 수 있습니다.
+
+- 🔗 GitHub: [lawnect/meerkat](https://github.com/lawnect/meerkat)
+- ⚙️ 구성: Go 백엔드 + Svelte 관리 화면
+- 📜 라이선스: MIT (포함된 rathole, Caddy는 Apache-2.0)
+- 🔐 주요 기능: SSL 인증서 자동 발급, OIDC SSO, 접근 제어, 감사 기록
+
+---
+
+## 왜 만들어졌을까?
+
+Cloudflare Tunnel은 내부 서버의 인바운드 포트를 열지 않고도 서비스를 외부에 공개할 수 있어 많이 쓰입니다. 하지만 일부 국내 통신망에서는 Cloudflare 접속이 **해외 PoP(LA·홍콩 등)를 경유**합니다. 그래서 '국내 서버 → 국내 사용자' 구간인데도 체감 속도가 크게 떨어질 수 있습니다.
+
+Meerkat은 이 우회 경로를 피하려고 **공개 진입점을 내가 고른 국내 서버에 두는** 방식을 택했습니다.
+
+## 어떻게 동작하나요?
+
+구조는 Cloudflare Tunnel과 거의 같습니다.
+
+1. **Outlet**: 공개 IP를 가진 서버(VM 1대 필요)에서 외부 요청을 받습니다.
+2. **Connector**: 사설 서버에서 실행되며, **rathole**을 통해 Outlet으로 *아웃바운드 연결*을 맺습니다.
+3. 그래서 사설 앱 쪽에서는 **인바운드 포트를 하나도 열 필요가 없습니다.**
+
+### 성능은 어떨까?
+
+작성자가 **Oracle Cloud Ampere(1 OCPU, RAM 4GB)** 환경에서 한 달 정도(내부 테스트 포함) 운영했을 때 측정한 값입니다.
+
+| 지표 | 값 |
+|---|---|
+| Outlet 평균 처리시간 | **0.28ms** |
+| Outlet p95 처리시간 | **0.82ms** |
+
+> ⚠️ 네트워크와 앱 응답시간이 모두 포함된 전체 지연이 아니라 **Outlet 내부 처리시간**만 잰 값입니다. 그래도 터널 자체가 병목이 될 일은 거의 없다고 볼 수 있습니다.
+
+---
+
+## 사내 서비스 운영에 필요한 기능들
+
+개인용 장난감 수준이 아니라 **기업 환경의 접근 통제와 감사**까지 신경 쓴 점이 눈에 띕니다.
+
+- **TLS 인증서 자동 발급·갱신**: Caddy 기반이라 인증서 관리 부담이 적습니다.
+- **Access 정책**: 특정 도메인이나 경로에 **OIDC SSO** 또는 **Bearer 토큰**을 요구할 수 있습니다.
+- **관리자 페이지 보안**: 접속 IP 제한 등
+- **감사 및 알림**: 관리 작업 감사 기록, 접속·실패 로그, **Telegram 알림**
+
+## 비슷한 프로젝트와 비교하면?
+
+| 항목 | Cloudflare Tunnel | Pangolin | Meerkat |
+|---|---|---|---|
+| 진입점 위치 | Cloudflare 엣지 (해외 경유 가능) | 직접 운영 | **직접 운영 (국내 배치 가능)** |
+| 구성 | 매니지드 서비스 | 비교적 기능이 많음 | Go + Svelte, 가벼운 구성 |
+| 초점 | 범용 | 범용 | **HTTP 서비스 공개** |
+| 라이선스 | 상용 서비스 | AGPL-3.0 (CE) | **MIT** |
+
+사내 도입을 검토한다면 AGPL이 아닌 **MIT 라이선스**라는 점도 장점입니다.
+
+---
+
+## 설치 방법 요약
+
+### 1. 저장소 받기 & 설정 파일 복사 (작업용 PC에서)
+
+```bash
+git clone https://github.com/lawnect/meerkat.git
+cd meerkat
+ssh -t user@SERVER \
+  'sudo install -d -o "$(id -u)" -g "$(id -g)" -m 700 /opt/meerkat-outlet'
+scp deploy/compose.outlet.yaml \
+  user@SERVER:/opt/meerkat-outlet/
+```
+
+`user@SERVER`는 실제 SSH 접속 주소로 바꿔 주세요.
+
+### 2. Outlet 초기화 & 실행 (공개 서버에서)
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" \
+  --entrypoint /usr/local/bin/outlet-init \
+  -v /opt/meerkat-outlet:/out \
+  ghcr.io/lawnect/meerkat:latest -dir /out
+
+cat > /opt/meerkat-outlet/compose.env <<EOF
+MEERKAT_DEPLOY_DIR=/opt/meerkat-outlet
+MEERKAT_UID=$(id -u)
+MEERKAT_GID=$(id -g)
+MEERKAT_BIND_ADDRESS=0.0.0.0
+MEERKAT_IMAGE=ghcr.io/lawnect/meerkat:latest
+EOF
+
+docker compose --env-file /opt/meerkat-outlet/compose.env \
+  -f /opt/meerkat-outlet/compose.outlet.yaml up -d
+```
+
+### 3. 관리 화면 접속 (SSH 포트 포워딩)
+
+보안을 위해 관리 화면은 설정을 마치기 전까지 공개 포트로 열리지 않습니다.
+
+```bash
+ssh -N -L 18443:127.0.0.1:18443 user@SERVER
+```
+
+이제 브라우저에서 `https://localhost:18443`에 접속합니다.
+
+- 서버의 `/opt/meerkat-outlet/configs/admin.token`에 있는 설정 코드로 관리자 계정을 만듭니다.
+- 사용할 도메인을 등록합니다.
+- 초기 화면은 **사설 CA 인증서**를 쓰므로 인증서 지문을 확인하거나 해당 CA를 신뢰해야 합니다.
+- 보안을 위해 **SSO 구성**을 권장합니다.
+
+---
+
+## 사용 예시: `app:80`을 `app.example.com`으로 공개하기
+
+사설 서버의 Docker 네트워크에서 돌고 있는 웹 앱을 외부에 공개하는 흐름입니다.
+
+1. `app.example.com`의 **DNS A 레코드**를 Outlet 서버 IP로 지정합니다.
+2. 관리 화면에서 **터널을 만들고**, 표시되는 Connector 설치 명령을 사설 서버에서 실행합니다.
+3. Connector와 앱을 **같은 Docker 네트워크**에 연결합니다.
+4. 관리 화면에서 서비스 대상으로 `app:80`, 공개 주소로 `app.example.com`을 등록합니다.
+5. 필요하면 SSO나 토큰 인증을 요구하는 **Access 정책**을 추가합니다.
+
+이제 외부에서 `https://app.example.com`으로 접속할 수 있습니다. 🎉
+
+> 🔑 Connector 설치 명령에는 **비밀 토큰**이 들어 있습니다. 채팅방이나 공개 저장소에 그대로 붙여넣지 않도록 주의하세요.
+
+자세한 설치 및 운영 방법은 저장소의 **한국어 가이드**에서 볼 수 있습니다.
+
+---
+
+## 도입 전에 알아둘 한계
+
+- **서버 운영은 직접 해야 합니다**: 공개 서버의 관리, 업데이트, 백업을 모두 직접 챙겨야 합니다.
+- **단일 인스턴스**: 현재 Outlet은 이중화를 지원하지 않습니다.
+- **DDoS 방어는 기대하지 마세요**: Cloudflare처럼 대규모 네트워크 공격을 대신 막아 주는 도구가 아닙니다.
+
+## 에디터 한마디
+
+국내 사용자 대상 서비스에서 Cloudflare Tunnel의 해외 경유 지연 때문에 고민해 본 적이 있다면 한 번 써볼 만한 프로젝트입니다. 사내 도구나 스테이징 서버처럼 **트래픽 규모는 크지 않지만 응답성과 접근 통제가 중요한 서비스**에 특히 잘 맞습니다. 작성자도 비슷한 문제를 겪은 사람들의 피드백을 기다리고 있으니, 써보고 개선점을 GitHub에 남겨 보세요.
+
+---
+
+원문: [https://news.hada.io/topic?id=36696&utm_source=geeknews&utm_medium=rss&utm_campaign=news](https://news.hada.io/topic?id=36696&utm_source=geeknews&utm_medium=rss&utm_campaign=news)
