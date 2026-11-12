@@ -1,0 +1,129 @@
+---
+title: "SHA 해시 대신 버전 태그로: GitHub Actions 잠금 파일로 공급망 공격 막기"
+date: "2026-11-12"
+description: "GitHub Actions 워크플로를 안전하게 운영하려면 그동안 actions/checkout@ 뒤에 40자짜리 커밋 SHA를 붙이는 방식이 권장됐습니다. 보안에는 도움이 되지만 읽기 어렵고 관리하기도 번거로웠죠."
+tags: ["GitHub Actions", "공급망 보안", "잠금 파일", "CI/CD", "Dependabot", "DevSecOps"]
+category: "스크랩"
+---
+
+![SHA 해시 대신 버전 태그로: GitHub Actions 잠금 파일로 공급망 공격 막기](/scraped/2026-11-12-sha-github-actions-bd7c0c.webp)
+
+## 들어가며
+
+GitHub Actions 워크플로를 안전하게 운영하려면 그동안 `actions/checkout@` 뒤에 40자짜리 커밋 SHA를 붙이는 방식이 권장됐습니다. 보안에는 도움이 되지만 읽기 어렵고 관리하기도 번거로웠죠.
+
+이제 GitHub Actions가 **워크플로 잠금 파일(lock file)**을 지원합니다. 워크플로에는 `v7.0.1` 같은 버전 태그를 쓰고, 실제 커밋 정보는 별도 잠금 파일에 고정하는 방식입니다. npm의 `package-lock.json`이나 Python의 `uv.lock`과 같은 개념이 GitHub Actions에도 생긴 셈입니다.
+
+## 핵심 요약
+
+- 워크플로에는 **버전 태그**를 쓰고, 커밋 SHA는 `.github/workflows/actions.lock`에 따로 고정합니다.
+- `gh actions-lock` 명령 하나로 기존 워크플로를 변환하고 잠금 파일을 만들 수 있습니다.
+- **Renovate와 Dependabot**이 이미 잠금 파일을 지원합니다.
+- CI에서 `gh actions-lock --verify`로 잠금 파일이 최신인지, 손상되지 않았는지 검사할 수 있습니다.
+- 보안 린터 **zizmor**는 v1.32.0부터 잠금 파일을 지원합니다.
+
+## 왜 SHA 고정이 필요했을까?
+
+GitHub Actions의 액션은 Git 저장소에서 가져옵니다. 그런데 Git 태그는 **언제든 다른 커밋을 가리키도록 바꿀 수 있습니다.** 그래서 `v3` 태그가 오늘은 안전한 코드를 가리키더라도, 공격자가 저장소 권한을 탈취하면 같은 태그를 악성 코드로 옮겨 놓을 수 있습니다. 이것이 대표적인 **공급망 공격** 방식입니다.
+
+바뀌지 않는 전체 커밋 SHA로 고정하면 이 공격을 막을 수 있습니다. 대신 워크플로를 읽을 때 어떤 버전인지 한눈에 알기 어렵다는 단점이 있었습니다. 잠금 파일은 읽기 쉬운 버전 태그와 SHA 고정의 안전성을 함께 챙길 수 있게 해 줍니다.
+
+## 잠금 파일 만들기
+
+### 1. 확장 설치
+
+`gh` CLI에 `gh-actions-lock` 확장을 설치합니다.
+
+```bash
+gh extension install github/gh-actions-lock
+```
+
+### 2. 잠금 파일 생성
+
+저장소 루트에서 다음 명령을 실행합니다.
+
+```bash
+gh actions-lock
+```
+
+실행하면 두 가지가 바뀝니다.
+
+- SHA로 고정돼 있던 워크플로가 `vX.Y.Z` 태그 형식으로 바뀝니다. 원문 예제에서는 `actions/checkout`이 `v7.0.1`로, `j178/prek-action`이 `v3.1.0`으로 바뀌었습니다.
+- `.github/workflows/actions.lock` 파일이 생성됩니다.
+
+### 3. 잠금 파일에 담기는 정보
+
+잠금 파일에는 워크플로별로 사용하는 액션 목록이 기록되고, 의존성마다 다음 정보가 들어갑니다.
+
+| 필드 | 설명 |
+|---|---|
+| `ref` | 워크플로에 적은 버전 태그 |
+| `commit` | `sha1-` 접두사가 붙은 전체 커밋 SHA |
+| `owner_id` | 저장소 소유자 ID |
+| `repo_id` | 저장소 ID |
+
+원문 예제의 잠금 파일 형식 버전은 `v0.0.3`입니다. `owner_id`와 `repo_id`까지 기록하므로, 저장소 이름만 같은 다른 저장소로 바꿔치기하는 경우도 감지할 수 있을 것으로 보입니다.
+
+> ⚠️ 잠금 파일은 자동으로 생성되는 파일이니 **직접 편집하지 말고** 항상 `gh actions-lock`으로 갱신하세요.
+
+### 4. 함께 커밋하기
+
+수정된 워크플로 파일과 새 잠금 파일은 **반드시 함께 커밋**해야 합니다. 둘 중 하나만 커밋하면 워크플로와 잠금 파일 내용이 서로 맞지 않게 됩니다.
+
+## 의존성 자동 업데이트: Renovate와 Dependabot
+
+Renovate와 Dependabot은 이미 잠금 파일을 지원합니다. 정기 의존성 업데이트를 할 때 워크플로의 버전 태그와 잠금 파일을 함께 갱신해 줍니다.
+
+원문에서는 **쿨다운(cooldown)** 설정도 함께 권장합니다. 새 버전이 나오자마자 바로 올리지 않고 일정 기간 기다리는 방식입니다. 악성 릴리스가 배포되더라도 대개 며칠 안에 발견되기 때문에, 이 기간만 기다려도 피해를 입을 위험이 크게 줄어듭니다.
+
+## CI에서 잠금 파일 검증하기
+
+GitHub는 잠금 파일이 최신인지, 손상되지 않았는지 CI에서 검증하라고 권장합니다. 가장 간단한 방법은 GitHub가 제공하는 `verify-lockfile.yml`을 저장소에 그대로 복사하는 것입니다.
+
+원문 예제에서는 기존 린트 워크플로 안에 별도의 `lockfile` 작업을 추가해 다른 작업과 병렬로 실행했습니다. 구성은 다음과 같습니다.
+
+- 경량 러너인 `ubuntu-slim` 사용
+- 환경 변수 `GH_TOKEN`에 `github.token` 값을 설정
+- `actions/checkout@v7.0.1`에 `persist-credentials: false` 설정 (불필요한 자격 증명이 남지 않도록)
+- 확장도 버전을 고정해서 설치
+
+```bash
+gh extension install github/gh-actions-lock --pin v0.4.1
+gh actions-lock --verify
+```
+
+검증은 다음과 같은 경우에 실패합니다.
+
+- 잠금 파일과 워크플로 내용이 서로 맞지 않을 때
+- 고정된 참조를 업스트림에서 더 이상 검증할 수 없을 때
+
+### 챙겨야 할 점
+
+- **확장 버전도 업데이트 대상입니다.** 예제처럼 `v0.4.1`로 고정했다면 나중에 직접 올리거나 자동으로 갱신할 방법을 마련해야 합니다.
+- **액션을 바꾸면 다시 잠가야 합니다.** 워크플로에서 액션을 추가하거나 변경했다면 `gh actions-lock`을 다시 실행하세요.
+- 이미 `actions/checkout`을 고정한 `lint.yml`에 검증 작업만 추가하는 경우에는 잠금 파일이 실제로 바뀌지 않습니다.
+- 반대로 `verify-lockfile.yml` 같은 **새 워크플로 파일**을 만들었다면 다시 잠가야 합니다. 이를 잊더라도 CI 검증 단계에서 잡아 줍니다.
+
+## 보안 린터 zizmor와 함께 쓰기
+
+GitHub Actions 보안 린터인 **zizmor** 사용도 강하게 권장됩니다. 잠금 파일을 쓰는 저장소라면 **zizmor v1.32.0 이상**이 필요합니다. 그보다 낮은 버전은 잠금 파일을 인식하지 못하므로, 태그로 바뀐 워크플로를 "고정되지 않은 액션"으로 잘못 경고할 수 있습니다.
+
+## 마무리
+
+잠금 파일 도입으로 "읽기 쉬운 워크플로"와 "공급망 공격 방어" 중 하나를 고를 필요가 없어졌습니다. 적용 순서를 정리하면 다음과 같습니다.
+
+1. `gh extension install github/gh-actions-lock`로 확장 설치
+2. `gh actions-lock` 실행 후 워크플로와 `actions.lock`을 함께 커밋
+3. CI에 `gh actions-lock --verify` 검증 작업 추가
+4. Renovate나 Dependabot에 쿨다운을 설정해 자동 업데이트
+5. zizmor를 v1.32.0 이상으로 올리기
+
+여전히 SHA 해시로 고정된 워크플로를 관리하고 있다면 이번 기회에 잠금 파일로 바꿔 보세요. 🔒
+
+---
+
+*원문 출처: [GeekNews](https://news.hada.io/topic?id=37037)*
+
+---
+
+원문: [https://news.hada.io/topic?id=37037&utm_source=geeknews&utm_medium=rss&utm_campaign=news](https://news.hada.io/topic?id=37037&utm_source=geeknews&utm_medium=rss&utm_campaign=news)
